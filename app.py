@@ -1056,7 +1056,15 @@ Responde de forma breve y práctica."""
 # =========================================================
 # TRANSLATION
 # =========================================================
+AVATAR_DIR = os.path.join(
+    BASE_DIR,
+    "avatars"
+)
 
+os.makedirs(
+    AVATAR_DIR,
+    exist_ok=True
+)
 def t(key):
     return texts[key][current_language]
 
@@ -1068,7 +1076,39 @@ def tf(key, **kwargs):
 # =========================================================
 # AVATAR
 # =========================================================
+def save_avatar(user_id, uploaded_file):
 
+    if uploaded_file is None:
+        return ""
+
+    try:
+
+        file_extension = uploaded_file.name.split(".")[-1]
+
+        file_path = os.path.join(
+            AVATAR_DIR,
+            f"user_{user_id}.{file_extension}"
+        )
+
+        with open(
+            file_path,
+            "wb"
+        ) as file:
+
+            file.write(
+                uploaded_file.getbuffer()
+            )
+
+        return file_path
+
+
+    except Exception as e:
+
+        logger.log_error(
+            f"Avatar save error: {e}"
+        )
+
+        return ""
 def show_avatar(user, size=60):
 
     avatar = user.get("avatar", "") if user else ""
@@ -2455,6 +2495,53 @@ elif st.session_state.page == "profile":
             100
         )
 
+        uploaded_avatar = st.file_uploader(
+            "📷 تغییر عکس پروفایل",
+            type=[
+                "png",
+                "jpg",
+                "jpeg"
+            ],
+            key="avatar_upload"
+        )
+if uploaded_avatar:
+
+    avatar_dir = os.path.join(
+        BASE_DIR,
+        "avatars"
+    )
+
+    os.makedirs(
+        avatar_dir,
+        exist_ok=True
+    )
+
+    avatar_path = os.path.join(
+        avatar_dir,
+        f"user_{user['id']}.png"
+    )
+
+    image = Image.open(uploaded_avatar)
+
+    image.save(
+        avatar_path
+    )
+
+    database.update_user_avatar(
+        user["id"],
+        avatar_path
+    )
+
+    user["avatar"] = avatar_path
+
+    st.session_state.user = user
+
+    save_session(user)
+
+    st.success("عکس پروفایل ذخیره شد ✅")
+
+    st.rerun()
+
     with col2:
 
         st.subheader(
@@ -2845,7 +2932,11 @@ if (
                 st.session_state.editing_contact_id = None
                 st.rerun()
 
+# =========================================================
+# APP VERSION
+# =========================================================
 
+APP_VERSION = "0.1.1"
 # =========================================================
 # FOOTER
 # =========================================================
