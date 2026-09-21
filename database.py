@@ -204,11 +204,36 @@ def create_users(cursor):
 
 
         created_at TEXT NOT NULL
-
+active INTEGER DEFAULT 1
     )
 
     """)
+def update_user_avatar(user_id, avatar_path):
 
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            UPDATE users
+            SET avatar = ?
+            WHERE id = ?
+            """,
+            (
+                avatar_path,
+                user_id
+            )
+        )
+
+        conn.commit()
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
 
 
 
@@ -1465,3 +1490,163 @@ def create_finance_debts(cursor):
     )
 
     """)
+    # =========================================================
+# DASHBOARD STATS
+# =========================================================
+
+def get_dashboard_stats(user_id, workspace_id):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            SELECT COUNT(*) as total
+            FROM contacts
+            WHERE workspace_id = ?
+            """,
+            (workspace_id,)
+        )
+
+        contacts = cursor.fetchone()["total"]
+
+
+        cursor.execute(
+            """
+            SELECT COUNT(*) as total
+            FROM finance_transactions
+            WHERE workspace_id = ?
+            """,
+            (workspace_id,)
+        )
+
+        transactions = cursor.fetchone()["total"]
+
+
+        cursor.execute(
+            """
+            SELECT COUNT(*) as total
+            FROM activity_logs
+            WHERE workspace_id = ?
+            """,
+            (workspace_id,)
+        )
+
+        activities = cursor.fetchone()["total"]
+
+
+        return {
+            "contacts": contacts,
+            "transactions": transactions,
+            "activities": activities
+        }
+
+
+    finally:
+        conn.close()
+        # =========================================================
+# DASHBOARD STATISTICS
+# =========================================================
+
+def get_dashboard_stats(user_id, workspace_id):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+
+        stats = {}
+
+        # Total contacts
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM contacts
+            WHERE user_id = ?
+            AND workspace_id = ?
+            AND deleted = 0
+            """,
+            (
+                user_id,
+                workspace_id
+            )
+        )
+
+        stats["total"] = cursor.fetchone()[0]
+
+
+        # VIP contacts
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM contacts
+            WHERE user_id = ?
+            AND workspace_id = ?
+            AND vip = 1
+            AND deleted = 0
+            """,
+            (
+                user_id,
+                workspace_id
+            )
+        )
+
+        stats["vip"] = cursor.fetchone()[0]
+
+
+        # Business contacts
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM contacts
+            WHERE user_id = ?
+            AND workspace_id = ?
+            AND contact_type = 'کاری'
+            AND deleted = 0
+            """,
+            (
+                user_id,
+                workspace_id
+            )
+        )
+
+        stats["work"] = cursor.fetchone()[0]
+
+
+        # Personal contacts
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM contacts
+            WHERE user_id = ?
+            AND workspace_id = ?
+            AND contact_type = 'شخصی'
+            AND deleted = 0
+            """,
+            (
+                user_id,
+                workspace_id
+            )
+        )
+
+        stats["personal"] = cursor.fetchone()[0]
+
+
+        return stats
+
+
+    except Exception:
+
+        return {
+    "total": 0,
+    "vip": 0,
+    "work": 0,
+    "personal": 0
+}
+
+
+    finally:
+
+        conn.close()
