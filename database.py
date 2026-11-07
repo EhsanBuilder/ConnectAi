@@ -2,7 +2,7 @@ import sqlite3
 import os
 import shutil
 from datetime import datetime
-
+import bcrypt
 
 # =========================================================
 # DATABASE CONFIG
@@ -128,6 +128,122 @@ def backup_database():
 
 
 # =========================================================
+# CONTACTS SYSTEM
+# =========================================================
+
+def create_contacts(cursor):
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS contacts (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            user_id INTEGER NOT NULL,
+
+            workspace_id INTEGER NOT NULL,
+
+            name TEXT NOT NULL,
+
+            email TEXT DEFAULT '',
+
+            phone TEXT DEFAULT '',
+
+            note TEXT DEFAULT '',
+
+            followup TEXT DEFAULT '',
+
+            budget INTEGER DEFAULT 0,
+
+            vip INTEGER DEFAULT 0,
+
+            contact_type TEXT DEFAULT 'شخصی',
+
+            deleted INTEGER DEFAULT 0,
+
+            created_at TEXT NOT NULL,
+
+            updated_at TEXT,
+
+            FOREIGN KEY(user_id)
+                REFERENCES users(id)
+                ON DELETE CASCADE,
+
+            FOREIGN KEY(workspace_id)
+                REFERENCES workspaces(id)
+                ON DELETE CASCADE
+        )
+    """)
+    # =========================================================
+# ADD CONTACT
+# =========================================================
+
+def add_contact(
+    user_id,
+    workspace_id,
+    name,
+    email="",
+    phone="",
+    note="",
+    followup="",
+    budget=0,
+    vip=0,
+    contact_type="شخصی"
+):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            INSERT INTO contacts
+            (
+                user_id,
+                workspace_id,
+                name,
+                email,
+                phone,
+                note,
+                followup,
+                budget,
+                vip,
+                contact_type,
+                created_at
+            )
+
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+
+            (
+                user_id,
+                workspace_id,
+                name,
+                email,
+                phone,
+                note,
+                followup,
+                budget,
+                vip,
+                contact_type,
+                now()
+            )
+        )
+
+        conn.commit()
+
+        return cursor.lastrowid
+
+    except Exception:
+
+        conn.rollback()
+
+        raise
+
+    finally:
+
+        conn.close()
+# =========================================================
 # DATABASE INIT
 # =========================================================
 
@@ -145,6 +261,8 @@ def init_db():
     create_user_settings(cursor)
 
     create_activity_logs(cursor)
+
+    create_contacts(cursor)
 
     create_database_info(cursor)
 
@@ -172,42 +290,194 @@ def create_users(cursor):
 
         id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-
         name TEXT NOT NULL,
-
 
         email TEXT UNIQUE NOT NULL,
 
-
         password_hash TEXT NOT NULL,
-
 
         username TEXT DEFAULT '',
 
-
         avatar TEXT DEFAULT '',
-
 
         phone TEXT DEFAULT '',
 
-
         plan TEXT DEFAULT 'free',
-
 
         role TEXT DEFAULT 'owner',
 
-
         is_active INTEGER DEFAULT 1,
-
 
         last_login TEXT,
 
-
         created_at TEXT NOT NULL
-active INTEGER DEFAULT 1
+
     )
 
     """)
+    # =========================================================
+# CREATE USER
+# =========================================================
+
+def create_user(name, email, password):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE email = ?
+            """,
+            (email,)
+        )
+
+        existing_user = cursor.fetchone()
+
+        if existing_user:
+            return None
+
+        password_hash = bcrypt.hashpw(
+            password.encode("utf-8"),
+            bcrypt.gensalt()
+        ).decode("utf-8")
+
+        cursor.execute(
+            """
+            INSERT INTO users
+            (
+                name,
+                email,
+                password_hash,
+                created_at
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                name,
+                email,
+                password_hash,
+                now()
+            )
+        )
+
+        conn.commit()
+
+        return cursor.lastrowid
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+     conn.close()
+
+
+
+def login_user(email, password):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT *
+            FROM users
+            WHERE email = ? AND is_active = 1
+            """,
+            (email,)
+        )
+
+        user = cursor.fetchone()
+
+        if not user:
+            return None
+
+        if not bcrypt.checkpw(
+            password.encode("utf-8"),
+            user["password_hash"].encode("utf-8")
+        ):
+            return None
+
+        cursor.execute(
+            """
+            UPDATE users
+            SET last_login = ?
+            WHERE id = ?
+            """,
+            (now(), user["id"])
+        )
+
+        conn.commit()
+        return user
+
+    finally:
+        conn.close()
+
+
+def get_or_create_google_user(name, email):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT *
+            FROM users
+            WHERE email = ?
+            """,
+            (email,)
+        )
+
+        user = cursor.fetchone()
+
+        if user:
+            return user
+
+        password_hash = bcrypt.hashpw(
+            os.urandom(32),
+            bcrypt.gensalt()
+        ).decode("utf-8")
+
+        cursor.execute(
+            """
+            INSERT INTO users
+            (
+                name,
+                email,
+                password_hash,
+                last_login,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (name, email, password_hash, now(), now())
+        )
+
+        conn.commit()
+        user_id = cursor.lastrowid
+
+        cursor.execute(
+            "SELECT * FROM users WHERE id = ?",
+            (user_id,)
+        )
+
+        return cursor.fetchone()
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
+
+
+
+
+
+    
 def update_user_avatar(user_id, avatar_path):
 
     conn = get_connection()
@@ -280,37 +550,44 @@ def create_workspaces(cursor):
 
     """)
 def get_or_create_default_workspace(user_id):
+
     conn = get_connection()
     cursor = conn.cursor()
 
     try:
+
+        # اول ببین این کاربر از قبل اتاق داره یا نه
         cursor.execute(
             """
             SELECT id
             FROM workspaces
             WHERE user_id = ?
+            ORDER BY id ASC
             LIMIT 1
             """,
             (user_id,)
         )
 
-        workspace = cursor.fetchone()
+        existing = cursor.fetchone()
 
-        if workspace:
-            return workspace["id"]
+        if existing:
+            return existing["id"]
 
+        # اتاق نداشت، یکی بساز
         cursor.execute(
             """
             INSERT INTO workspaces
             (
                 user_id,
-                name
+                name,
+                created_at
             )
-            VALUES (?, ?)
+            VALUES (?, ?, ?)
             """,
             (
                 user_id,
-                "Workspace اصلی"
+                "Workspace اصلی",
+                now()
             )
         )
 
@@ -319,10 +596,42 @@ def get_or_create_default_workspace(user_id):
         return cursor.lastrowid
 
     except Exception:
+
         conn.rollback()
         raise
 
     finally:
+
+        conn.close()
+        # =========================================================
+# ACTIVITY LOGS (WRITE)
+# =========================================================
+
+def log_activity(user_id, workspace_id, action, description=""):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            INSERT INTO activity_logs
+            (user_id, workspace_id, action, description, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (user_id, workspace_id, action, description, now())
+        )
+
+        conn.commit()
+
+    except Exception:
+
+        conn.rollback()
+        raise
+
+    finally:
+
         conn.close()
 
 
@@ -998,7 +1307,36 @@ def create_finance_debts(cursor):
 
     )
 
-    """)# =========================================================
+    """)
+def init_finance_tables():
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    create_finance_accounts(cursor)
+    create_finance_categories(cursor)
+    create_finance_transactions(cursor)
+    create_finance_ledger(cursor)
+    create_invoices(cursor)
+    create_invoice_items(cursor)
+    create_payments(cursor)
+    create_finance_debts(cursor)
+
+    conn.commit()
+    conn.close()
+
+    create_finance_accounts(cursor)
+    create_finance_categories(cursor)
+    create_finance_transactions(cursor)
+    create_finance_ledger(cursor)
+    create_invoices(cursor)
+    create_invoice_items(cursor)
+    create_payments(cursor)
+    create_finance_debts(cursor)
+
+    conn.commit()
+    conn.close()
+# =========================================================
 # FINANCE CORE SYSTEM
 # Professional Accounting Engine
 # =========================================================
@@ -1117,84 +1455,7 @@ def create_finance_categories(cursor):
 # MAIN TRANSACTIONS
 # =========================================================
 
-def create_finance_transactions(cursor):
 
-    cursor.execute("""
-    
-    CREATE TABLE IF NOT EXISTS finance_transactions (
-
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-
-        user_id INTEGER NOT NULL,
-
-
-        workspace_id INTEGER NOT NULL,
-
-
-        account_id INTEGER,
-
-
-        category_id INTEGER,
-
-
-        transaction_type TEXT NOT NULL,
-        -- income
-        -- expense
-
-
-        amount INTEGER NOT NULL,
-
-
-        title TEXT NOT NULL,
-
-
-        description TEXT DEFAULT '',
-
-
-        contact_id INTEGER,
-
-
-        transaction_date TEXT NOT NULL,
-
-
-        created_at TEXT NOT NULL,
-
-
-        status TEXT DEFAULT 'completed',
-
-
-
-        FOREIGN KEY(user_id)
-
-        REFERENCES users(id)
-
-        ON DELETE CASCADE,
-
-
-        FOREIGN KEY(workspace_id)
-
-        REFERENCES workspaces(id)
-
-        ON DELETE CASCADE,
-
-
-        FOREIGN KEY(account_id)
-
-        REFERENCES finance_accounts(id)
-
-        ON DELETE SET NULL,
-
-
-        FOREIGN KEY(category_id)
-
-        REFERENCES finance_categories(id)
-
-        ON DELETE SET NULL
-
-    )
-
-    """)
 
 
 
@@ -1490,63 +1751,9 @@ def create_finance_debts(cursor):
     )
 
     """)
-    # =========================================================
-# DASHBOARD STATS
+
+
 # =========================================================
-
-def get_dashboard_stats(user_id, workspace_id):
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    try:
-
-        cursor.execute(
-            """
-            SELECT COUNT(*) as total
-            FROM contacts
-            WHERE workspace_id = ?
-            """,
-            (workspace_id,)
-        )
-
-        contacts = cursor.fetchone()["total"]
-
-
-        cursor.execute(
-            """
-            SELECT COUNT(*) as total
-            FROM finance_transactions
-            WHERE workspace_id = ?
-            """,
-            (workspace_id,)
-        )
-
-        transactions = cursor.fetchone()["total"]
-
-
-        cursor.execute(
-            """
-            SELECT COUNT(*) as total
-            FROM activity_logs
-            WHERE workspace_id = ?
-            """,
-            (workspace_id,)
-        )
-
-        activities = cursor.fetchone()["total"]
-
-
-        return {
-            "contacts": contacts,
-            "transactions": transactions,
-            "activities": activities
-        }
-
-
-    finally:
-        conn.close()
-        # =========================================================
 # DASHBOARD STATISTICS
 # =========================================================
 
@@ -1615,15 +1822,15 @@ def get_dashboard_stats(user_id, workspace_id):
         stats["work"] = cursor.fetchone()[0]
 
 
-        # Personal contacts
+        # Contacts added today
         cursor.execute(
             """
             SELECT COUNT(*)
             FROM contacts
             WHERE user_id = ?
             AND workspace_id = ?
-            AND contact_type = 'شخصی'
             AND deleted = 0
+            AND DATE(created_at) = DATE('now', 'localtime')
             """,
             (
                 user_id,
@@ -1631,21 +1838,460 @@ def get_dashboard_stats(user_id, workspace_id):
             )
         )
 
-        stats["personal"] = cursor.fetchone()[0]
+        stats["today"] = cursor.fetchone()[0]
+
+
+        # Overdue follow-ups
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM contacts
+            WHERE user_id = ?
+            AND workspace_id = ?
+            AND deleted = 0
+            AND followup IS NOT NULL
+            AND followup != ''
+            AND DATE(followup) < DATE('now', 'localtime')
+            """,
+            (
+                user_id,
+                workspace_id
+            )
+        )
+
+        stats["late"] = cursor.fetchone()[0]
 
 
         return stats
 
 
-    except Exception:
+    except Exception as e:
+
+        print(
+            f"Dashboard stats error: {e}"
+        )
 
         return {
-    "total": 0,
-    "vip": 0,
-    "work": 0,
-    "personal": 0
-}
+            "total": 0,
+            "vip": 0,
+            "work": 0,
+            "today": 0,
+            "late": 0
+        }
 
+
+    finally:
+
+        conn.close()
+        # =========================================================
+# GET CONTACTS
+# =========================================================
+
+def get_contacts(user_id, workspace_id, search=""):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+
+        if search:
+
+            cursor.execute(
+                """
+                SELECT *
+                FROM contacts
+
+                WHERE user_id = ?
+                AND workspace_id = ?
+                AND deleted = 0
+
+                AND (
+                    name LIKE ?
+                    OR phone LIKE ?
+                    OR email LIKE ?
+                )
+
+                ORDER BY created_at DESC
+                """,
+
+                (
+                    user_id,
+                    workspace_id,
+                    f"%{search}%",
+                    f"%{search}%",
+                    f"%{search}%"
+                )
+            )
+
+        else:
+
+            cursor.execute(
+                """
+                SELECT *
+                FROM contacts
+
+                WHERE user_id = ?
+                AND workspace_id = ?
+                AND deleted = 0
+
+                ORDER BY created_at DESC
+                """,
+
+                (
+                    user_id,
+                    workspace_id
+                )
+            )
+
+        return cursor.fetchall()
+
+    finally:
+
+        conn.close()
+        # =========================================================
+# GET ONE CONTACT
+# =========================================================
+
+def get_contact(contact_id, user_id, workspace_id):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            SELECT *
+            FROM contacts
+
+            WHERE id = ?
+            AND user_id = ?
+            AND workspace_id = ?
+            AND deleted = 0
+            """,
+            (
+                contact_id,
+                user_id,
+                workspace_id
+            )
+        )
+
+        return cursor.fetchone()
+
+    finally:
+
+        conn.close()
+        # =========================================================
+# UPDATE CONTACT
+# =========================================================
+
+def update_contact(
+    contact_id,
+    user_id,
+    workspace_id,
+    name,
+    email="",
+    phone="",
+    note="",
+    followup="",
+    budget=0,
+    vip=0,
+    contact_type="شخصی"
+):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            UPDATE contacts
+
+            SET
+                name = ?,
+                email = ?,
+                phone = ?,
+                note = ?,
+                followup = ?,
+                budget = ?,
+                vip = ?,
+                contact_type = ?,
+                updated_at = ?
+
+            WHERE id = ?
+            AND user_id = ?
+            AND workspace_id = ?
+            AND deleted = 0
+            """,
+
+            (
+                name,
+                email,
+                phone,
+                note,
+                followup,
+                budget,
+                vip,
+                contact_type,
+                now(),
+
+                contact_id,
+                user_id,
+                workspace_id
+            )
+        )
+
+        conn.commit()
+
+        return cursor.rowcount
+
+    except Exception:
+
+        conn.rollback()
+
+        raise
+
+    finally:
+
+        conn.close()
+        # =========================================================
+# DELETE CONTACT
+# =========================================================
+
+def delete_contact(contact_id, user_id, workspace_id):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            UPDATE contacts
+
+            SET
+                deleted = 1,
+                updated_at = ?
+
+            WHERE id = ?
+            AND user_id = ?
+            AND workspace_id = ?
+            AND deleted = 0
+            """,
+
+            (
+                now(),
+                contact_id,
+                user_id,
+                workspace_id
+            )
+        )
+
+        conn.commit()
+
+        return cursor.rowcount
+
+    except Exception:
+
+        conn.rollback()
+
+        raise
+
+    finally:
+
+        conn.close()
+def add_finance_transaction(
+    user_id,
+    workspace_id,
+    transaction_type,
+    amount,
+    title,
+    category_id=None,
+    description=None,
+    transaction_date=None,
+    account_id=None,
+    contact_id=None
+):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        INSERT INTO finance_transactions (
+            user_id,
+            workspace_id,
+            account_id,
+            category_id,
+            transaction_type,
+            amount,
+            title,
+            description,
+            contact_id,
+            transaction_date
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            user_id,
+            workspace_id,
+            account_id,
+            category_id,
+            transaction_type,
+            amount,
+            title,
+            description,
+            contact_id,
+            transaction_date or today()
+        )
+    )
+
+    conn.commit()
+    conn.close()
+    
+def get_or_create_finance_category(workspace_id, name):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT id FROM finance_categories
+            WHERE workspace_id = ?
+            AND name = ?
+            AND category_type = 'income'
+            """,
+            (workspace_id, name.strip())
+        )
+
+        category = cursor.fetchone()
+
+        if category:
+            return category["id"]
+
+        cursor.execute(
+            """
+            INSERT INTO finance_categories
+            (workspace_id, name, category_type, created_at)
+            VALUES (?, ?, 'income', ?)
+            """,
+            (workspace_id, name.strip(), now())
+        )
+
+        conn.commit()
+        return cursor.lastrowid
+
+    finally:
+        conn.close()
+
+def check_finance_columns():
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("PRAGMA table_info(finance_transactions)")
+
+    columns = cursor.fetchall()
+
+    conn.close()
+
+    return columns
+    
+# =========================================================
+# ACTIVITY LOGS (READ)
+# =========================================================
+
+def get_activity_logs(user_id, workspace_id, limit=50):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            SELECT id, action, description, created_at
+            FROM activity_logs
+
+            WHERE user_id = ?
+            AND (workspace_id = ? OR workspace_id IS NULL)
+
+            ORDER BY created_at DESC
+            LIMIT ?
+            """,
+            (user_id, workspace_id, limit)
+        )
+
+        return [
+            {
+                "id": row["id"],
+                "action": row["action"],
+                "details": row["description"],
+                "created_at": row["created_at"],
+            }
+            for row in cursor.fetchall()
+        ]
+
+    finally:
+
+        conn.close()
+
+
+# =========================================================
+# UPDATE USER NAME
+# =========================================================
+
+def update_user_name(user_id, name):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute(
+            "UPDATE users SET name = ? WHERE id = ?",
+            (name, user_id)
+        )
+
+        conn.commit()
+
+    except Exception:
+
+        conn.rollback()
+        raise
+
+    finally:
+
+
+        
+
+        conn.close()
+        # =========================================================
+# ACTIVITY LOGS (WRITE)
+# =========================================================
+
+def log_activity(user_id, workspace_id, action, description=""):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            INSERT INTO activity_logs
+            (user_id, workspace_id, action, description, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (user_id, workspace_id, action, description, now())
+        )
+
+        conn.commit()
+
+    except Exception:
+
+        conn.rollback()
+        raise
 
     finally:
 
