@@ -3,17 +3,18 @@ import database
 import ai
 import api_client
 import logger
-
+import streamlit as st
+import base64
 from google_auth import create_google_flow
 from calendar_service import create_calendar_event
-
+import random
 import json
 import os
 import time
-
+import re
 from urllib.parse import urlencode
 from datetime import date, datetime
-
+import streamlit.components.v1 as components
 from PIL import Image
 import requests
 try:
@@ -220,6 +221,7 @@ if "logged_in" not in st.session_state:
 
 DEFAULTS = {
     "page": "dashboard",
+    "settings_section": "profile",
     "workspace_id": None,
     "language": "🇮🇷 فارسی",
     "ai_results": {},
@@ -230,7 +232,8 @@ DEFAULTS = {
     "google_code_verifier": None,
     "calendar_contact_id": None,
     "calendar_form_open": False,
-    "contact_selected_message": None
+    "contact_selected_message": None,
+    "greeting_seed": None
 }
 
 for key, value in DEFAULTS.items():
@@ -379,13 +382,44 @@ texts = {
         "en": "🚀 ConnectAI",
         "es": "🚀 ConnectAI"
     },
+    "total_contacts": {
+        "fa": "کل مخاطبین",
+        "en": "Total contacts",
+        "es": "Total de contactos"
+    },
 
+    "business_contacts": {
+        "fa": "مخاطبین کاری",
+        "en": "Business contacts",
+        "es": "Contactos de trabajo"
+    },
+
+    "today": {
+        "fa": "امروز",
+        "en": "Today",
+        "es": "Hoy"
+    },
+
+    "overdue": {
+        "fa": "عقب‌افتاده",
+        "en": "Overdue",
+        "es": "Atrasados"
+    },
+"nav_settings": {
+    "fa": "تنظیمات",
+    "en": "Settings",
+    "es": "Configuración"
+},
     "subtitle": {
         "fa": "دستیار هوشمند مدیریت مخاطبین",
         "en": "Smart Contact Management Assistant",
         "es": "Asistente inteligente de gestión de contactos"
     },
-
+"settings": {
+    "fa": "تنظیمات",
+    "en": "Settings",
+    "es": "Configuración"
+},
     "login": {
         "fa": "🔐 ورود",
         "en": "🔐 Login",
@@ -483,9 +517,9 @@ texts = {
     },
 
     "vip": {
-        "fa": "⭐ VIP",
-        "en": "⭐ VIP",
-        "es": "⭐ VIP"
+        "fa": " VIP",
+        "en": " VIP",
+        "es": " VIP"
     },
 
     "edit": {
@@ -530,11 +564,13 @@ texts = {
         "es": "🤖 Resultado de IA"
     },
 
-    "logout": {
-        "fa": "🚪 خروج",
-        "en": "🚪 Logout",
-        "es": "🚪 Cerrar sesión"
-    },
+
+
+"logout": {
+    "fa": "خروج",
+    "en": "Logout",
+    "es": "Cerrar sesión"
+},
 
     "login_success": {
         "fa": "ورود موفق بود ✅",
@@ -644,29 +680,13 @@ texts = {
         "es": "No se encontraron contactos."
     },
 
-    "total_contacts": {
-        "fa": "👥 مخاطبین",
-        "en": "👥 Contacts",
-        "es": "👥 Contactos"
-    },
 
-    "business_contacts": {
-        "fa": "💼 کاری",
-        "en": "💼 Business",
-        "es": "💼 Negocios"
-    },
 
-    "today": {
-        "fa": "📅 امروز",
-        "en": "📅 Today",
-        "es": "📅 Hoy"
-    },
 
-    "overdue": {
-        "fa": "⚠️ عقب افتاده",
-        "en": "⚠️ Overdue",
-        "es": "⚠️ Vencidos"
-    },
+
+
+
+
 
     "latest_contacts": {
         "fa": "آخرین مخاطبین",
@@ -710,11 +730,7 @@ texts = {
         "es": "🤖 Analizar"
     },
 
-    "change_vip": {
-        "fa": "⭐ تغییر VIP",
-        "en": "⭐ Change VIP",
-        "es": "⭐ Cambiar VIP"
-    },
+
 
     "new_meeting": {
         "fa": "📅 جلسه جدید",
@@ -1044,7 +1060,23 @@ Responde de forma breve y práctica."""
         "en": "Meeting with {name}",
         "es": "Reunión con {name}"
     },
+    "empty_title": {
+        "fa": "هنوز مخاطبی نداری",
+        "en": "You don't have any contacts yet",
+        "es": "Todavía no tienes contactos"
+    },
 
+    "empty_text": {
+        "fa": "اولین مخاطبت رو اضافه کن تا پیگیری‌ها و پیشنهادهای امروز شروع بشه.",
+        "en": "Add your first contact to start getting follow-ups and daily suggestions.",
+        "es": "Añade tu primer contacto para empezar a recibir seguimientos y sugerencias diarias."
+    },
+
+    "empty_button": {
+        "fa": "➕ اولین مخاطبت رو اضافه کن",
+        "en": "➕ Add your first contact",
+        "es": "➕ Añade tu primer contacto"
+    },
     "footer": {
         "fa": "🚀 ConnectAI — مدیریت هوشمند مخاطبین",
         "en": "🚀 ConnectAI — Smart Contact Management",
@@ -1073,6 +1105,135 @@ def tf(key, **kwargs):
     return t(key).format(**kwargs)
 
 
+
+def load_svg_icon(path, size=20):
+    with open(path, "r", encoding="utf-8") as file:
+        svg = file.read()
+
+    encoded = base64.b64encode(
+        svg.encode("utf-8")
+    ).decode("utf-8")
+
+    return f"""
+        <img
+            src="data:image/svg+xml;base64,{encoded}"
+            width="{size}"
+            height="{size}"
+            style="vertical-align: middle;"
+        />
+    """
+# =========================================================
+# GREETING
+# =========================================================
+
+GREETINGS = {
+    "morning": {
+        "fa": [
+            "صبح بخیر {name} ☀️",
+            "سلام {name}، صبح‌ات بخیر! روز خوبی داشته باشی",
+            "صبح‌ات بخیر {name}، آماده‌ای برای یک روز پرانرژی؟",
+        ],
+        "en": [
+            "Good morning, {name} ☀️",
+            "Good morning, {name}! Have a great day",
+            "Morning, {name}! Ready for an energetic day?",
+        ],
+        "es": [
+            "Buenos días, {name} ☀️",
+            "¡Buenos días, {name}! Que tengas un gran día",
+            "¡Buen día, {name}! ¿Listo para una jornada llena de energía?",
+        ],
+    },
+    "noon": {
+        "fa": [
+            "ظهر بخیر {name} 🌤️",
+            "سلام {name}، ظهرت بخیر! یک استراحت کوتاه یادت نره",
+            "ظهر بخیر {name}، امیدوارم روزت تا اینجا خوب بوده باشه",
+        ],
+        "en": [
+            "Good afternoon, {name} 🌤️",
+            "Good afternoon, {name}! Don't forget a short break",
+            "Hello, {name}! Hope your day is going well so far",
+        ],
+        "es": [
+            "Buenas tardes, {name} 🌤️",
+            "¡Buenas tardes, {name}! No olvides un pequeño descanso",
+            "¡Hola, {name}! Espero que tu día vaya bien hasta ahora",
+        ],
+    },
+    "evening": {
+        "fa": [
+            "عصر بخیر {name} 🌇",
+            "سلام {name}، عصرت بخیر! خسته نباشی",
+            "عصر بخیر {name}، بریم سراغ پیگیری‌های امروز؟",
+        ],
+        "en": [
+            "Good evening, {name} 🌇",
+            "Good evening, {name}! Nice work today",
+            "Good evening, {name}! Shall we check today's follow-ups?",
+        ],
+        "es": [
+            "Buenas tardes, {name} 🌇",
+            "¡Buenas tardes, {name}! Buen trabajo hoy",
+            "¡Buenas tardes, {name}! ¿Revisamos los seguimientos de hoy?",
+        ],
+    },
+    "night": {
+        "fa": [
+            "شب بخیر {name} 🌙",
+            "سلام {name}، شبت بخیر! امیدوارم روز خوبی داشته باشی",
+            "شب بخیر {name}، یک نگاه آخر به کارهای امروز بنداز",
+        ],
+        "en": [
+            "Good night, {name} 🌙",
+            "Good evening, {name}! I hope you had a good day",
+            "Good night, {name}! Take a last look at today's tasks",
+        ],
+        "es": [
+            "Buenas noches, {name} 🌙",
+            "¡Buenas noches, {name}! Espero que hayas tenido un buen día",
+            "Buenas noches, {name}. Echa un último vistazo a las tareas de hoy",
+        ],
+    },
+}
+
+
+def get_time_period(hour):
+    if 5 <= hour < 12:
+        return "morning"
+    if 12 <= hour < 16:
+        return "noon"
+    if 16 <= hour < 20:
+        return "evening"
+    return "night"
+
+
+def get_greeting(user, lang):
+    period = get_time_period(datetime.now().hour)
+
+    # نام کوچک کاربر (اگر نام وجود نداشت یا فقط نام پیش‌فرض گوگل بود، بدون نام)
+    name = ""
+    if user:
+        full_name = (user.get("name") or "").strip()
+        if full_name and full_name != "Google User":
+            name = full_name.split()[0]
+
+    # یک عدد تصادفی فقط یک‌بار در هر ورود ساخته می‌شود
+    # تا با هر کلیک روی برنامه، جمله عوض نشود
+    if st.session_state.get("greeting_seed") is None:
+        st.session_state.greeting_seed = random.randint(0, 9999)
+
+    templates = GREETINGS[period][lang]
+    template = templates[st.session_state.greeting_seed % len(templates)]
+
+    if name:
+        return template.format(name=name)
+
+    # حالت بدون نام: جای نام را همراه با ویرگول کنارش حذف می‌کنیم
+    for part in ("، {name}", ", {name}", " {name}"):
+        template = template.replace(part, "")
+
+    return template.replace("{name}", "")
 # =========================================================
 # AVATAR
 # =========================================================
@@ -1109,7 +1270,10 @@ def save_avatar(user_id, uploaded_file):
         )
 
         return ""
+
 def show_avatar(user, size=60):
+    import random
+    import hashlib
 
     avatar = user.get("avatar", "") if user else ""
 
@@ -1118,11 +1282,28 @@ def show_avatar(user, size=60):
             image = Image.open(avatar)
             st.image(image, width=size)
             return
-
         except Exception as e:
-            logger.log_error(
-                f"Failed to load avatar: {e}"
-            )
+            logger.log_error(f"Failed to load avatar: {e}")
+
+    name = (
+        user.get("name", "").strip()
+        if user else ""
+    )
+    initial = name[0].upper() if name else "?"
+
+    colors = [
+        "#667eea",  # بنفش
+        "#e74c3c",  # قرمز
+        "#27ae60",  # سبز
+        "#f39c12",  # نارنجی
+        "#e84393",  # صورتی
+    ]
+
+    user_id = str(user.get("id", name)) if user else "guest"
+    color_index = int(
+        hashlib.md5(user_id.encode()).hexdigest(), 16
+    ) % len(colors)
+    color = colors[color_index]
 
     st.markdown(
         f"""
@@ -1130,18 +1311,20 @@ def show_avatar(user, size=60):
             width:{size}px;
             height:{size}px;
             border-radius:50%;
-            background:linear-gradient(135deg,#667eea,#764ba2);
+            background:{color};
             display:flex;
             align-items:center;
             justify-content:center;
             color:white;
             font-size:{size // 2}px;
+            font-weight:bold;
         ">
-            👤
+            {initial}
         </div>
         """,
         unsafe_allow_html=True
     )
+
 
 
 # =========================================================
@@ -1232,7 +1415,8 @@ def handle_google_callback():
     )
 
     saved_data = load_google_state()
-
+    print("GOOGLE STATE FILE:")
+    print(saved_data)
     if saved_data:
 
         if not saved_state:
@@ -1407,6 +1591,8 @@ def handle_google_callback():
 handle_google_callback()
 
 
+
+
 # =========================================================
 # LOGIN / REGISTER
 # =========================================================
@@ -1415,18 +1601,27 @@ if not st.session_state.logged_in:
 
     tab_login, tab_register = st.tabs(
         [
-            t("login"),
-            t("register")
+            t("login").replace("🔐 ", ""),
+            t("register").replace("📝 ", "")
         ]
     )
 
-    # -----------------------------------------------------
-    # LOGIN
-    # -----------------------------------------------------
 
+    # LOGIN TAB
     with tab_login:
+        st.markdown(
+            f"""
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:2rem; font-weight:700;">
+                    {t("login").replace("🔐 ", "")}
+                </span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-        st.title(t("login"))
+
+
 
         login_email = st.text_input(
             t("email"),
@@ -1440,13 +1635,12 @@ if not st.session_state.logged_in:
         )
 
         if st.button(
-            t("login"),
+            t("login").replace("🔐 ", ""),
             use_container_width=True,
             key="normal_login_button"
         ):
 
             try:
-
                 result = api_client.login(
                     login_email,
                     login_password
@@ -1472,28 +1666,13 @@ if not st.session_state.logged_in:
                     st.rerun()
 
                 else:
-
                     st.error(
-                        result.get(
-                            "message",
-                            t("login_error")
-                        )
+                        result.get("message", t("login_error"))
                     )
 
             except Exception as e:
-
-                logger.log_error(
-                    f"Login error: {e}"
-                )
-
-                st.error(
-                    tf(
-                        "login_error_exception",
-                        error=e
-                    )
-                )
-
-        st.divider()
+                logger.log_error(f"Login error: {e}")
+                st.error(tf("login_error_exception", error=e))
 
         if st.button(
             t("google_login"),
@@ -1502,7 +1681,6 @@ if not st.session_state.logged_in:
         ):
 
             try:
-
                 flow = create_google_flow()
 
                 authorization_url, state = (
@@ -1514,69 +1692,58 @@ if not st.session_state.logged_in:
                 )
 
                 code_verifier = getattr(
-                    flow,
-                    "code_verifier",
-                    None
+                    flow, "code_verifier", None
                 )
 
                 if not code_verifier:
-
-                    st.error(
-                        t("google_security_failed")
-                    )
+                    st.error(t("google_security_failed"))
 
                 else:
-
                     st.session_state.google_state = state
-                    st.session_state.google_code_verifier = (
-                        code_verifier
-                    )
+                    st.session_state.google_code_verifier = code_verifier
 
-                    if save_google_state(
-                        state,
-                        code_verifier
-                    ):
-
+                    if save_google_state(state, code_verifier):
                         st.link_button(
                             t("continue_google"),
                             authorization_url,
                             use_container_width=True
                         )
-
                     else:
-
-                        st.error(
-                            t("google_security_save_failed")
-                        )
+                        st.error(t("google_security_save_failed"))
 
             except Exception as e:
-
                 logger.log_error(
                     f"Google authorization error: {e}"
                 )
+                st.error(tf("google_login_error", error=e))
 
-                st.error(
-                    tf(
-                        "google_login_error",
-                        error=e
-                    )
-                )
-
-    # -----------------------------------------------------
-    # REGISTER
-    # -----------------------------------------------------
-
+    # REGISTER TAB
     with tab_register:
 
         st.title(t("register"))
 
+        st.markdown(
+            f'<div style="display:flex;align-items:center;gap:8px;">'
+            f'{load_svg_icon(os.path.join(BASE_DIR, "icons", "user.svg"), 20)}'
+            f'<span>{t("name")}</span></div>',
+            unsafe_allow_html=True
+        )
+
         reg_name = st.text_input(
             t("name"),
+            label_visibility="collapsed",
             key="reg_name"
+        )
+
+        st.markdown(
+            f'<div style="display:flex;align-items:center;gap:8px;">'
+            f'<span>✉️</span><span>{t("email")}</span></div>',
+            unsafe_allow_html=True
         )
 
         reg_email = st.text_input(
             t("email"),
+            label_visibility="collapsed",
             key="reg_email"
         )
 
@@ -1598,7 +1765,7 @@ if not st.session_state.logged_in:
         )
 
         if st.button(
-            t("register"),
+            t("register").replace("📝 ", ""),
             use_container_width=True,
             key="register_button"
         ):
@@ -1628,14 +1795,94 @@ if not st.session_state.logged_in:
     st.stop()
 
 
+
+
+
+
+
+    with tab_register:
+        st.title(t("register"))
+
+        # Name field
+        st.markdown(
+            f'<div style="display:flex;align-items:center;gap:8px;">'
+            f'{load_svg_icon(os.path.join(BASE_DIR, "icons", "log-in.svg"), 20)}'
+            f'<span>{t("name")}</span></div>',
+            unsafe_allow_html=True
+        )
+
+        reg_name = st.text_input(
+            t("name"),
+            label_visibility="collapsed",
+            key="reg_name"
+        )
+
+        # Email field
+        st.markdown(
+            f'<div style="display:flex;align-items:center;gap:8px;">'
+            f'<span>✉️</span><span>{t("email")}</span></div>',
+            unsafe_allow_html=True
+        )
+
+        reg_email = st.text_input(
+            t("email"),
+            label_visibility="collapsed",
+            key="reg_email"
+        )
+
+        reg_password = st.text_input(
+            t("password"),
+            type="password",
+            key="reg_password"
+        )
+
+        reg_confirm = st.text_input(
+            t("confirm_password"),
+            type="password",
+            key="reg_confirm"
+        )
+
+        terms = st.checkbox(
+            t("terms"),
+            key="terms_checkbox"
+        )
+
+        if st.button(
+            t("register"),
+            use_container_width=True,
+            key="register_button"
+        ):
+            if not reg_name.strip():
+                st.warning(t("name_required"))
+            elif not reg_email.strip():
+                st.warning(t("email_required"))
+            elif not reg_password:
+                st.warning(t("password_required"))
+            elif reg_password != reg_confirm:
+                st.error(t("passwords_mismatch"))
+            elif not terms:
+                st.warning(t("terms_required"))
+            else:
+                register_user(
+                    reg_name,
+                    reg_email,
+                    reg_password
+                )
+
+    st.stop()
+
 # =========================================================
 # CURRENT USER
+# =========================================================
+
+# =========================================================
+# SESSION / CURRENT USER
+# Replace the corresponding section in app.py with this block.
 # =========================================================
 
 user = st.session_state.user
 
 if not user:
-
     st.session_state.logged_in = False
     st.rerun()
 
@@ -1644,16 +1891,12 @@ if not user:
 # INTERNAL WORKSPACE
 # =========================================================
 
-# Workspace is now hidden from the UI.
-# It remains internally because the current database
-# uses workspace_id for data isolation.
+if not st.session_state.workspace_id and user:
+    print("CURRENT USER:", user)
+    print("USER ID:", user["id"])
 
-if not st.session_state.workspace_id:
-
-    st.session_state.workspace_id = (
-     database.get_or_create_default_workspace(
-            user["id"]
-        )
+    st.session_state.workspace_id = database.get_or_create_default_workspace(
+        user["id"]
     )
 
 
@@ -1662,88 +1905,49 @@ if not st.session_state.workspace_id:
 # =========================================================
 
 with st.sidebar:
-
-    st.title(t("title"))
-
-    st.divider()
-
     show_avatar(user, 65)
-
-    st.write(
-        f"**{user.get('name', '')}**"
-    )
-
-    st.caption(
-        user.get("email", "")
-    )
-
+    st.write(f"**{user.get('name', '')}**")
+    st.caption(user.get("email", ""))
     st.divider()
 
-    if st.button(
-        t("dashboard"),
-        use_container_width=True,
-        key="nav_dashboard"
-    ):
-        st.session_state.page = "dashboard"
-        st.session_state.editing_contact_id = None
-        st.rerun()
+    current_page = st.session_state.get("page", "dashboard")
 
-    if st.button(
-        t("contacts"),
-        use_container_width=True,
-        key="nav_contacts"
-    ):
-        st.session_state.page = "contacts"
-        st.session_state.editing_contact_id = None
-        st.rerun()
+    menu_items = [
+        ("dashboard", "nav_dashboard", ":material/dashboard:"),
+        ("contacts", "nav_contacts", ":material/business_center:"),
+        ("add_contact", "nav_add_contact", ":material/person_add:"),
+        ("activity", "nav_activity", ":material/calendar_month:"),
+        ("finance", "nav_finance", ":material/account_balance_wallet:"),
+        ("settings", "nav_settings", ":material/settings:"),
 
-    if st.button(
-        t("add_contact"),
-        use_container_width=True,
-        key="nav_add_contact"
-    ):
-        st.session_state.page = "add_contact"
-        st.session_state.editing_contact_id = None
-        st.rerun()
+    ]
 
-    if st.button(
-        t("activity"),
-        use_container_width=True,
-        key="nav_activity"
-    ):
-        st.session_state.page = "activity"
-        st.session_state.editing_contact_id = None
-        st.rerun()
+    for page_name, button_key, icon_name in menu_items:
+        label = t(page_name)
+        label = re.sub(r"^[^\w\s]+\s*", "", label)
 
-    if st.button(
-        t("finance"),
-        use_container_width=True,
-        key="nav_finance"
-    ):
-        st.session_state.page = "finance"
-        st.session_state.editing_contact_id = None
-        st.rerun()
-
-    if st.button(
-        t("profile"),
-        use_container_width=True,
-        key="nav_profile"
-    ):
-        st.session_state.page = "profile"
-        st.session_state.editing_contact_id = None
-        st.rerun()
+        if st.button(
+            label,
+            icon=icon_name,
+            use_container_width=True,
+            key=button_key,
+            type="primary" if current_page == page_name else "secondary",
+        ):
+            st.session_state.page = page_name
+            st.session_state.editing_contact_id = None
+            st.rerun()
 
     st.divider()
 
     if st.button(
         t("logout"),
+        icon=":material/logout:",
         use_container_width=True,
-        key="logout_button"
+        key="logout_button",
     ):
-
         clear_session()
         clear_google_state()
-
+        st.session_state.greeting_seed = None
         st.session_state.logged_in = False
         st.session_state.user = None
         st.session_state.workspace_id = None
@@ -1751,7 +1955,6 @@ with st.sidebar:
         st.session_state.google_code_verifier = None
         st.session_state.calendar_contact_id = None
         st.session_state.calendar_form_open = False
-
         st.rerun()
 
 
@@ -1759,16 +1962,8 @@ with st.sidebar:
 # HEADER
 # =========================================================
 
-header_col1, header_col2 = st.columns([5, 1])
-
-with header_col1:
-
-    st.title(t("title"))
-    st.caption(t("subtitle"))
-
-with header_col2:
-
-    show_avatar(user, 55)
+st.title(t("title"))
+st.caption(t("subtitle"))
 
 
 # =========================================================
@@ -1776,192 +1971,84 @@ with header_col2:
 # =========================================================
 
 if st.session_state.page == "dashboard":
-
-    st.markdown(
-        """
-        <div style="
-            position:relative;
-            overflow:hidden;
-            min-height:220px;
-            padding:34px 38px;
-            margin:8px 0 28px 0;
-            border-radius:28px;
-
-            background:linear-gradient(
-                135deg,
-                rgba(255,255,255,0.88),
-                rgba(245,248,255,0.70)
-            );
-
-            border:1px solid rgba(255,255,255,0.80);
-
-            box-shadow:
-                0 20px 55px rgba(31,41,55,0.10),
-                inset 0 1px 0 rgba(255,255,255,0.95);
-
-            backdrop-filter:blur(22px);
-            -webkit-backdrop-filter:blur(22px);
-        ">
-
-            <div style="
-                position:absolute;
-                width:280px;
-                height:280px;
-                right:-90px;
-                top:-110px;
-                border-radius:50%;
-
-                background:radial-gradient(
-                    circle,
-                    rgba(99,102,241,0.20) 0%,
-                    rgba(99,102,241,0.07) 45%,
-                    transparent 72%
-                );
-            "></div>
-
-            <div style="
-                position:absolute;
-                width:220px;
-                height:220px;
-                left:-100px;
-                bottom:-130px;
-                border-radius:50%;
-
-                background:radial-gradient(
-                    circle,
-                    rgba(56,189,248,0.16) 0%,
-                    transparent 70%
-                );
-            "></div>
-
-            <div style="
-                position:relative;
-                z-index:2;
-                max-width:75%;
-            ">
-
-                <div style="
-                    display:inline-flex;
-                    align-items:center;
-                    gap:8px;
-
-                    padding:7px 13px;
-                    margin-bottom:14px;
-
-                    border-radius:999px;
-
-                    background:rgba(255,255,255,0.72);
-                    border:1px solid rgba(255,255,255,0.90);
-
-                    box-shadow:
-                        0 8px 22px rgba(31,41,55,0.07);
-
-                    color:#4f46e5;
-                    font-size:13px;
-                    font-weight:700;
-                ">
-                    ✨ ConnectAI
-                </div>
-
-            </div>
-
-            <div style="
-                position:absolute;
-                z-index:2;
-                right:34px;
-                bottom:28px;
-
-                width:92px;
-                height:92px;
-
-                display:flex;
-                align-items:center;
-                justify-content:center;
-
-                border-radius:30px;
-
-                background:linear-gradient(
-                    145deg,
-                    rgba(255,255,255,0.94),
-                    rgba(238,242,255,0.74)
-                );
-
-                border:1px solid rgba(255,255,255,0.95);
-
-                box-shadow:
-                    0 18px 35px rgba(79,70,229,0.15);
-
-                font-size:44px;
-
-                transform:rotate(4deg);
-            ">
-                🤖
-            </div>
-
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    with st.container(border=True):
+        st.subheader(get_greeting(user, current_language))
 
     stats = database.get_dashboard_stats(
         user["id"],
-        st.session_state.workspace_id
+        st.session_state.workspace_id,
+    )
+    contacts = database.get_contacts(
+        user["id"],
+        st.session_state.workspace_id,
     )
 
+    if not contacts:
+        st.markdown(f"### {t('empty_title')}")
+        st.write(t("empty_text"))
+
+        if st.button(
+            t("empty_button"),
+            type="primary",
+            use_container_width=True,
+            key="empty_add_contact",
+        ):
+            st.session_state.page = "add_contact"
+            st.rerun()
+
+        st.divider()
+
+    # Dashboard statistics
     c1, c2, c3, c4, c5 = st.columns(5)
 
     with c1:
         st.metric(
-            t("total_contacts"),
-            stats["total"]
+            f":material/groups: {t('total_contacts')}",
+            stats["total"],
         )
 
     with c2:
         st.metric(
-            t("vip"),
-            stats["vip"]
+            f":material/star: {t('vip')}",
+            stats["vip"],
         )
 
     with c3:
         st.metric(
-            t("business_contacts"),
-            stats["work"]
+            f":material/business_center: {t('business_contacts')}",
+            stats["work"],
         )
 
     with c4:
         st.metric(
-            t("today"),
-            stats["today"]
+            f":material/calendar_month: {t('today')}",
+            stats["today"],
         )
 
     with c5:
         st.metric(
-            t("overdue"),
-            stats["late"]
+            f":material/warning: {t('overdue')}",
+            stats["late"],
         )
 
     st.divider()
-
     st.subheader(t("today_suggestions"))
 
     contacts = database.get_contacts(
         user["id"],
-        st.session_state.workspace_id
+        st.session_state.workspace_id,
     )
-
     today = date.today()
     followups = []
 
     for contact in contacts:
-
-        followup = contact.get("followup")
+        followup = contact["followup"]
 
         if not followup:
             continue
 
         try:
             followup_date = date.fromisoformat(followup)
-
         except (ValueError, TypeError):
             continue
 
@@ -1969,83 +2056,44 @@ if st.session_state.page == "dashboard":
             followups.append(contact)
 
     if not followups:
-
         st.success(t("no_followups"))
-
     else:
-
         for contact in followups[:5]:
-
             with st.container(border=True):
-
-                st.write(
-                    f"👤 **{contact['name']}**"
-                )
-
+                st.write(f"👤 **{contact['name']}**")
                 st.caption(
-                    f"📅 {t('followup')}: "
-                    f"{contact['followup']}"
+                    f"📅 {t('followup')}: {contact['followup']}"
                 )
 
                 if st.button(
                     t("view_contact"),
-                    key=f"dash_{contact['id']}"
+                    key=f"dash_{contact['id']}",
                 ):
-
-                    st.session_state.selected_contact_id = (
-                        contact["id"]
-                    )
-
-                    st.session_state.contact_selected_message = (
-                        contact["name"]
-                    )
-
+                    st.session_state.selected_contact_id = contact["id"]
+                    st.session_state.contact_selected_message = contact["name"]
                     st.session_state.page = "contacts"
                     st.rerun()
 
     st.divider()
-
     st.subheader(t("latest_contacts"))
 
     if not contacts:
-
         st.info(t("no_contacts_yet"))
-
     else:
-
         for contact in contacts[:10]:
-
             col1, col2, col3 = st.columns([4, 3, 1])
 
             with col1:
-
-                vip = "⭐" if contact.get("vip") else ""
-
-                st.write(
-                    f"**{contact['name']}** {vip}"
-                )
+                vip = "⭐" if contact["vip"] else ""
+                st.write(f"**{contact['name']}** {vip}")
 
             with col2:
-
-                st.caption(
-                    contact.get("phone", "")
-                )
+                st.caption(contact["phone"])
 
             with col3:
-
-                if st.button(
-                    "👁️",
-                    key=f"view_{contact['id']}"
-                ):
-
-                    st.session_state.selected_contact_id = (
-                        contact["id"]
-                    )
-
-                    st.session_state.contact_selected_message = (
-                        contact["name"]
-                    )
-
+                if st.button("👁️", key=f"view_{contact['id']}"):
+                    st.session_state.selected_contact_id = contact["id"]
+                    st.session_state.contact_selected_message = contact["name"]
                     st.session_state.page = "contacts"
                     st.rerun()
 
@@ -2055,214 +2103,81 @@ if st.session_state.page == "dashboard":
 # =========================================================
 
 elif st.session_state.page == "contacts":
-
     st.header(t("contacts"))
-
-    if st.session_state.get(
-        "contact_selected_message"
-    ):
-
-        selected_name = (
-            st.session_state.contact_selected_message
-        )
-
-        st.toast(
-            tf(
-                "contact_selected",
-                name=selected_name
-            ),
-            icon="💬"
-        )
-
-        st.session_state.contact_selected_message = None
+    st.caption("مخاطبین خود را جستجو و مدیریت کنید.")
 
     search = st.text_input(
-        t("search"),
-        key="contact_search"
+        "🔎 جستجوی مخاطب",
+        placeholder="نام، شماره یا ایمیل...",
     )
 
-    if search.strip():
-
-        contacts = database.search_contacts(
-            user["id"],
-            search,
-            st.session_state.workspace_id
-        )
-
-    else:
-
-        contacts = database.get_contacts(
-            user["id"],
-            st.session_state.workspace_id
-        )
-
-    st.caption(
-        tf(
-            "contacts_count",
-            count=len(contacts)
-        )
+    contacts = database.get_contacts(
+        user_id=user["id"],
+        workspace_id=st.session_state.workspace_id,
+        search=search.strip(),
     )
+
+    st.caption(f"تعداد مخاطبین: {len(contacts)}")
+    st.divider()
 
     if not contacts:
-
-        st.info(t("no_contact_found"))
-
+        st.info("هنوز مخاطبی پیدا نشد.")
     else:
-
         for contact in contacts:
-
             with st.container(border=True):
-
-                col1, col2, col3 = st.columns([5, 4, 2])
+                col1, col2 = st.columns([3, 2])
 
                 with col1:
+                    vip = " ⭐" if contact["vip"] else ""
+                    st.subheader(f"{contact['name']}{vip}")
 
-                    vip = "⭐" if contact.get("vip") else ""
+                    if contact["phone"]:
+                        st.write(f"📞 {contact['phone']}")
 
-                    st.subheader(
-                        f"{contact['name']} {vip}"
-                    )
-
-                    if contact.get("phone"):
-                        st.write(
-                            f"📞 {contact['phone']}"
-                        )
-
-                    if contact.get("email"):
-                        st.write(
-                            f"📧 {contact['email']}"
-                        )
+                    if contact["email"]:
+                        st.write(f"📧 {contact['email']}")
 
                 with col2:
+                    if contact["contact_type"] == "work":
+                        st.caption("💼 کاری")
+                    else:
+                        st.caption("👤 شخصی")
 
-                    if contact.get("note"):
-                        st.write(
-                            f"📝 {contact['note']}"
-                        )
-
-                    if contact.get("followup"):
-                        st.write(
-                            f"📅 {contact['followup']}"
-                        )
-
-                    if contact.get("budget"):
-                        st.write(
-                            f"💰 {contact['budget']}"
-                        )
-
-                    if contact.get("contact_type"):
-
-                        type_text = (
-                            t("work")
-                            if contact["contact_type"] == "work"
-                            else t("personal")
-                        )
-
-                        st.caption(
-                            f"{t('contact_type')}: "
-                            f"{type_text}"
-                        )
-
-                with col3:
-
-                    if st.button(
-                        t("ai_analyze"),
-                        key=f"ai_{contact['id']}"
-                    ):
-
-                        question = t("ai_contact_prompt")
-
-                        with st.spinner(
-                            t("ai_loading")
-                        ):
-
-                            try:
-
-                                result = ai.ask_contact_ai(
-                                    contact,
-                                    question
-                                )
-
-                            except Exception as e:
-
-                                logger.log_error(
-                                    f"AI analysis error: {e}"
-                                )
-
-                                result = tf(
-                                    "ai_analysis_error",
-                                    error=e
-                                )
-
-                        st.session_state.ai_results[
-                            contact["id"]
-                        ] = result
-
-                        st.rerun()
-
-                    if contact["id"] in st.session_state.ai_results:
-
-                        with st.expander(
-                            t("ai_result")
-                        ):
-
-                            st.write(
-                                st.session_state.ai_results[
-                                    contact["id"]
-                                ]
-                            )
-
-                    if st.button(
-                        t("change_vip"),
-                        key=f"vip_{contact['id']}"
-                    ):
-
+                    budget = contact["budget"]
+                    if budget:
                         try:
+                            budget = f"{int(budget):,}"
+                        except (ValueError, TypeError):
+                            pass
+                        st.write(f"💰 بودجه: {budget}")
 
-                            database.toggle_vip(
-                                contact["id"],
-                                user["id"],
-                                contact.get("vip", 0),
-                                st.session_state.workspace_id
-                            )
+                    if contact["followup"]:
+                        st.write(f"📅 پیگیری: {contact['followup']}")
 
-                            st.rerun()
+                    if contact["note"]:
+                        st.write(f"📝 {contact['note']}")
 
-                        except Exception as e:
+                btn1, btn2 = st.columns(2)
 
-                            logger.log_error(
-                                f"VIP toggle error: {e}"
-                            )
-
-                            st.error(
-                                tf(
-                                    "vip_update_failed",
-                                    error=e
-                                )
-                            )
-
-                    if st.button(
-                        t("new_meeting"),
-                        key=f"calendar_{contact['id']}"
-                    ):
-
-                        st.session_state.calendar_contact_id = (
-                            contact["id"]
-                        )
-
-                        st.session_state.calendar_form_open = True
-
-                        st.rerun()
-
+                with btn1:
                     if st.button(
                         t("edit"),
-                        key=f"edit_{contact['id']}"
+                        use_container_width=True,
+                        key=f"edit_{contact['id']}",
                     ):
+                        st.session_state.editing_contact_id = contact["id"]
+                        st.session_state.calendar_form_open = False
+                        st.rerun()
 
-                        st.session_state.editing_contact_id = (
-                            contact["id"]
-                        )
-
+                with btn2:
+                    if st.button(
+                        t("new_meeting"),
+                        use_container_width=True,
+                        key=f"meeting_{contact['id']}",
+                    ):
+                        st.session_state.calendar_contact_id = contact["id"]
+                        st.session_state.calendar_form_open = True
+                        st.session_state.editing_contact_id = None
                         st.rerun()
 
 
@@ -2271,76 +2186,38 @@ elif st.session_state.page == "contacts":
 # =========================================================
 
 elif st.session_state.page == "add_contact":
-
     st.header(t("add_contact"))
+    if st.session_state.pop("contact_added_ok", False):
+        st.success("کاربر با موفقیت اضافه شد!")
 
-    new_name = st.text_input(
-        t("name"),
-        key="new_contact_name"
-    )
-
-    new_email = st.text_input(
-        t("email"),
-        key="new_contact_email"
-    )
-
-    new_phone = st.text_input(
-        t("phone"),
-        key="new_contact_phone"
-    )
-
-    new_note = st.text_area(
-        t("note"),
-        key="new_contact_note"
-    )
-
-    new_budget = st.text_input(
-        t("budget"),
-        key="new_contact_budget"
-    )
-
+    new_name = st.text_input(t("name"), key="new_contact_name")
+    new_email = st.text_input(t("email"), key="new_contact_email")
+    new_phone = st.text_input(t("phone"), key="new_contact_phone")
+    new_note = st.text_area(t("note"), key="new_contact_note")
+    new_budget = st.text_input(t("budget"), key="new_contact_budget")
     new_followup = st.date_input(
         t("followup"),
         value=date.today(),
-        key="new_contact_followup"
+        key="new_contact_followup",
     )
-
     new_type = st.selectbox(
         t("contact_type"),
-        [
-            t("personal"),
-            t("work")
-        ],
-        key="new_contact_type"
+        [t("personal"), t("work")],
+        key="new_contact_type",
     )
 
-    database_new_type = (
-        "work"
-        if new_type == t("work")
-        else "personal"
-    )
-
-    new_vip = st.checkbox(
-        t("vip"),
-        key="new_contact_vip"
-    )
+    database_new_type = "work" if new_type == t("work") else "personal"
+    new_vip = st.checkbox(t("vip"), key="new_contact_vip")
 
     if st.button(
         t("add_contact"),
         use_container_width=True,
-        key="add_contact_button"
+        key="add_contact_button",
     ):
-
         if not new_name.strip():
-
-            st.warning(
-                t("add_contact_name_required")
-            )
-
+            st.warning(t("add_contact_name_required"))
         else:
-
             try:
-
                 database.add_contact(
                     user_id=user["id"],
                     name=new_name.strip(),
@@ -2351,24 +2228,14 @@ elif st.session_state.page == "add_contact":
                     budget=new_budget.strip(),
                     contact_type=database_new_type,
                     vip=1 if new_vip else 0,
-                    workspace_id=st.session_state.workspace_id
+                    workspace_id=st.session_state.workspace_id,
                 )
 
-                st.success(t("contact_added"))
+                st.session_state.contact_added_ok = True
                 st.rerun()
-
             except Exception as e:
-
-                logger.log_error(
-                    f"Add contact error: {e}"
-                )
-
-                st.error(
-                    tf(
-                        "add_contact_failed",
-                        error=e
-                    )
-                )
+                logger.log_error(f"Add contact error: {e}")
+                st.error(tf("add_contact_failed", error=e))
 
 
 # =========================================================
@@ -2376,71 +2243,30 @@ elif st.session_state.page == "add_contact":
 # =========================================================
 
 elif st.session_state.page == "activity":
-
     st.header(t("activity"))
 
     try:
-
         activities = database.get_activity_logs(
             user["id"],
-            st.session_state.workspace_id
+            st.session_state.workspace_id,
         )
 
         if not activities:
-
             st.info(t("no_activity"))
-
         else:
-
             for activity in activities:
-
                 with st.container(border=True):
-
-                    st.write(
-                        f"📌 {activity.get('action', '')}"
-                    )
+                    st.write(f"📌 {activity.get('action', '')}")
 
                     if activity.get("details"):
-                        st.caption(
-                            activity["details"]
-                        )
+                        st.caption(activity["details"])
 
                     if activity.get("created_at"):
-                        st.caption(
-                            f"🕒 {activity['created_at']}"
-                        )
+                        st.caption(f"🕒 {activity['created_at']}")
 
     except Exception as e:
-
-        logger.log_error(
-            f"Activity page error: {e}"
-        )
-
-        st.error(
-            tf(
-                "activity_error",
-                error=e
-            )
-        )
-
-
-# =========================================================
-# FINANCE SYSTEM V2
-# Professional Business Finance Module
-# =========================================================
-#
-# Features:
-# - Income / Expense management
-# - Customer financial history
-# - Debt tracking
-# - Budget management
-# - Custom categories
-#
-# Data isolation:
-# user_id + workspace_id
-#
-# =========================================================
-
+        logger.log_error(f"Activity page error: {e}")
+        st.error(tf("activity_error", error=e))
 
 
 # =========================================================
@@ -2448,33 +2274,77 @@ elif st.session_state.page == "activity":
 # =========================================================
 
 elif st.session_state.page == "finance":
-
     st.header(t("finance"))
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button(
-            "➕ ثبت درآمد",
-            use_container_width=True
-        ):
+        if st.button("➕ ثبت درآمد", use_container_width=True):
             st.session_state.finance_action = "income"
 
     with col2:
-        if st.button(
-            "➖ ثبت هزینه",
-            use_container_width=True
-        ):
+        if st.button("➖ ثبت هزینه", use_container_width=True):
             st.session_state.finance_action = "expense"
 
     with col3:
-        if st.button(
-            "📊 گزارش مالی",
-            use_container_width=True
-        ):
+        if st.button("📊 گزارش مالی", use_container_width=True):
             st.session_state.finance_action = "report"
 
+    if st.session_state.get("finance_action") == "income":
+        st.subheader("➕ ثبت درآمد")
 
+        with st.form("income_form"):
+            amount = st.number_input(
+                "💰 مبلغ درآمد",
+                min_value=0,
+                step=1000,
+            )
+            title = st.text_input(
+                "📝 عنوان درآمد",
+                placeholder="مثلاً فروش محصول",
+            )
+            category = st.text_input(
+                "📂 دسته‌بندی",
+                placeholder="مثلاً فروش",
+            )
+            transaction_date = st.date_input("📅 تاریخ درآمد")
+            description = st.text_area(
+                "📄 توضیحات",
+                placeholder="توضیح اختیاری",
+            )
+            submit = st.form_submit_button("ثبت درآمد")
+
+
+    if submit:
+        if not title.strip():
+            st.warning("عنوان درآمد را وارد کن.")
+    elif not category.strip():
+        st.warning("دسته‌بندی را وارد کن.")
+    elif amount <= 0:
+        st.warning("مبلغ باید بیشتر از صفر باشد.")
+    else:
+        try:
+            category_id = database.get_or_create_finance_category(
+                st.session_state.workspace_id,
+                category.strip(),
+            )
+
+            database.add_finance_transaction(
+                user_id=user["id"],
+                workspace_id=st.session_state.workspace_id,
+                transaction_type="income",
+                amount=amount,
+                title=title.strip(),
+                category_id=category_id,
+                description=description,
+                transaction_date=str(transaction_date),
+            )
+
+            st.success("درآمد با موفقیت ثبت شد ✅")
+
+        except Exception as e:
+            logger.log_error(f"Income save error: {e}")
+            st.error(f"ثبت درآمد ناموفق بود: {e}")
 
 
 
@@ -2482,127 +2352,61 @@ elif st.session_state.page == "finance":
 # PROFILE
 # =========================================================
 
-elif st.session_state.page == "profile":
-
+elif st.session_state.page == "settings":
     st.header(t("profile"))
 
     col1, col2 = st.columns([1, 3])
 
     with col1:
-
-        show_avatar(
-            user,
-            100
-        )
+        show_avatar(user, 100)
 
         uploaded_avatar = st.file_uploader(
             "📷 تغییر عکس پروفایل",
-            type=[
-                "png",
-                "jpg",
-                "jpeg"
-            ],
-            key="avatar_upload"
+            type=["png", "jpg", "jpeg"],
+            key="avatar_upload",
         )
-if uploaded_avatar:
 
-    avatar_dir = os.path.join(
-        BASE_DIR,
-        "avatars"
-    )
+        if uploaded_avatar:
+            avatar_dir = os.path.join(BASE_DIR, "avatars")
+            os.makedirs(avatar_dir, exist_ok=True)
+            avatar_path = os.path.join(avatar_dir, f"user_{user['id']}.png")
 
-    os.makedirs(
-        avatar_dir,
-        exist_ok=True
-    )
+            image = Image.open(uploaded_avatar)
+            image.save(avatar_path)
 
-    avatar_path = os.path.join(
-        avatar_dir,
-        f"user_{user['id']}.png"
-    )
+            database.update_user_avatar(user["id"], avatar_path)
+            user["avatar"] = avatar_path
+            st.session_state.user = user
+            save_session(user)
 
-    image = Image.open(uploaded_avatar)
-
-    image.save(
-        avatar_path
-    )
-
-    database.update_user_avatar(
-        user["id"],
-        avatar_path
-    )
-
-    user["avatar"] = avatar_path
-
-    st.session_state.user = user
-
-    save_session(user)
-
-    st.success("عکس پروفایل ذخیره شد ✅")
-
-    st.rerun()
+            st.success("عکس پروفایل ذخیره شد ✅")
+            st.rerun()
 
     with col2:
-
-        st.subheader(
-            user.get("name", "")
-        )
-
-        st.write(
-            f"📧 {user.get('email', '')}"
-        )
-
-        st.write(
-            f"💎 {t('plan')}: "
-            f"{user.get('plan', 'free')}"
-        )
+        st.subheader(user.get("name", ""))
+        st.write(f"📧 {user.get('email', '')}")
+        st.write(f"💎 {t('plan')}: {user.get('plan', 'free')}")
 
     st.divider()
-
-    st.subheader(
-        t("account_info")
-    )
+    st.subheader(t("account_info"))
 
     profile_name = st.text_input(
         t("name"),
         value=user.get("name", ""),
-        key="profile_name"
+        key="profile_name",
     )
 
-    if st.button(
-        t("save_name"),
-        key="save_profile_name"
-    ):
-
+    if st.button(t("save_name"), key="save_profile_name"):
         try:
-
-            database.update_user_name(
-                user["id"],
-                profile_name.strip()
-            )
-
+            database.update_user_name(user["id"], profile_name.strip())
             user["name"] = profile_name.strip()
-
             st.session_state.user = user
-
             save_session(user)
-
             st.success(t("name_updated"))
-
             st.rerun()
-
         except Exception as e:
-
-            logger.log_error(
-                f"Profile update error: {e}"
-            )
-
-            st.error(
-                tf(
-                    "profile_update_failed",
-                    error=e
-                )
-            )
+            logger.log_error(f"Profile update error: {e}")
+            st.error(tf("profile_update_failed", error=e))
 
 
 # =========================================================
@@ -2614,177 +2418,115 @@ if (
     and st.session_state.calendar_form_open
     and st.session_state.calendar_contact_id
 ):
-
     calendar_contact = database.get_contact(
         st.session_state.calendar_contact_id,
         user["id"],
-        st.session_state.workspace_id
+        st.session_state.workspace_id,
     )
 
     if calendar_contact:
-
         st.divider()
-
-        st.subheader(
-            tf(
-                "meeting_for",
-                name=calendar_contact["name"]
-            )
-        )
+        st.subheader(tf("meeting_for", name=calendar_contact["name"]))
 
         event_title = st.text_input(
             t("meeting_title"),
-            value=tf(
-                "meeting_default_title",
-                name=calendar_contact["name"]
-            ),
-            key="calendar_event_title"
+            value=tf("meeting_default_title", name=calendar_contact["name"]),
+            key="calendar_event_title",
         )
-
         event_date = st.date_input(
             t("meeting_date"),
             value=date.today(),
-            key="calendar_event_date"
+            key="calendar_event_date",
         )
 
         col1, col2 = st.columns(2)
-
         with col1:
-
             start_time = st.time_input(
                 t("start_time"),
-                value=datetime.strptime(
-                    "10:00",
-                    "%H:%M"
-                ).time(),
-                key="calendar_start_time"
+                value=datetime.strptime("10:00", "%H:%M").time(),
+                key="calendar_start_time",
             )
-
         with col2:
-
             end_time = st.time_input(
                 t("end_time"),
-                value=datetime.strptime(
-                    "11:00",
-                    "%H:%M"
-                ).time(),
-                key="calendar_end_time"
+                value=datetime.strptime("11:00", "%H:%M").time(),
+                key="calendar_end_time",
             )
 
         event_description = st.text_area(
             t("description"),
             value=tf(
                 "meeting_default_description",
-                name=calendar_contact["name"]
+                name=calendar_contact["name"],
             ),
-            key="calendar_event_description"
+            key="calendar_event_description",
         )
 
         col1, col2 = st.columns(2)
-
         with col1:
-
             create_event = st.button(
                 t("create_meeting"),
                 use_container_width=True,
-                key="create_calendar_event"
+                key="create_calendar_event",
             )
-
         with col2:
-
             cancel_event = st.button(
                 t("cancel"),
                 use_container_width=True,
-                key="cancel_calendar_event"
+                key="cancel_calendar_event",
             )
 
         if cancel_event:
-
             st.session_state.calendar_contact_id = None
             st.session_state.calendar_form_open = False
             st.rerun()
 
         if create_event:
-
             if end_time <= start_time:
-
-                st.error(
-                    t("end_time_error")
-                )
-
+                st.error(t("end_time_error"))
             else:
-
                 try:
-
                     start_datetime = datetime.combine(
                         event_date,
-                        start_time
+                        start_time,
                     ).isoformat()
-
                     end_datetime = datetime.combine(
                         event_date,
-                        end_time
+                        end_time,
                     ).isoformat()
 
-                    with st.spinner(
-                        t("creating_meeting")
-                    ):
-
+                    with st.spinner(t("creating_meeting")):
                         result = create_calendar_event(
                             user_id=user["id"],
                             workspace_id=st.session_state.workspace_id,
                             title=event_title,
                             start_datetime=start_datetime,
                             end_datetime=end_datetime,
-                            description=event_description
+                            description=event_description,
                         )
 
                     if result.get("success"):
-
-                        st.success(
-                            t("meeting_created")
-                        )
-
-                        event_link = result.get(
-                            "event_link"
-                        )
+                        st.success(t("meeting_created"))
+                        event_link = result.get("event_link")
 
                         if event_link:
-
                             st.link_button(
                                 t("open_calendar"),
                                 event_link,
-                                use_container_width=True
+                                use_container_width=True,
                             )
 
                         st.session_state.calendar_contact_id = None
                         st.session_state.calendar_form_open = False
-
                     else:
-
-                        st.error(
-                            t("meeting_failed")
-                        )
-
-                        st.error(
-                            result.get(
-                                "message",
-                                t("unknown_error")
-                            )
-                        )
+                        st.error(t("meeting_failed"))
+                        st.error(result.get("message", t("unknown_error")))
 
                 except Exception as e:
-
                     logger.log_error(
                         f"Google Calendar event creation error: {e}"
                     )
-
-                    st.error(
-                        tf(
-                            "calendar_error",
-                            error=e
-                        )
-                    )
+                    st.error(tf("calendar_error", error=e))
 
 
 # =========================================================
@@ -2795,98 +2537,66 @@ if (
     st.session_state.page == "contacts"
     and st.session_state.editing_contact_id
 ):
-
     contact = database.get_contact(
         st.session_state.editing_contact_id,
         user["id"],
-        st.session_state.workspace_id
+        st.session_state.workspace_id,
     )
 
     if contact:
-
         st.divider()
-
-        st.subheader(
-            tf(
-                "edit_contact",
-                name=contact["name"]
-            )
-        )
+        st.subheader(tf("edit_contact", name=contact["name"]))
 
         edit_name = st.text_input(
             t("name"),
             value=contact.get("name", ""),
-            key="edit_name"
+            key="edit_name",
         )
-
         edit_email = st.text_input(
             t("email"),
             value=contact.get("email", ""),
-            key="edit_email"
+            key="edit_email",
         )
-
         edit_phone = st.text_input(
             t("phone"),
             value=contact.get("phone", ""),
-            key="edit_phone"
+            key="edit_phone",
         )
-
         edit_note = st.text_area(
             t("note"),
             value=contact.get("note", ""),
-            key="edit_note"
+            key="edit_note",
         )
-
         edit_budget = st.text_input(
             t("budget"),
             value=contact.get("budget", ""),
-            key="edit_budget"
+            key="edit_budget",
         )
-
         edit_followup = st.date_input(
             t("followup"),
             value=(
-                date.fromisoformat(
-                    contact["followup"]
-                )
+                date.fromisoformat(contact["followup"])
                 if contact.get("followup")
                 else date.today()
             ),
-            key="edit_followup"
+            key="edit_followup",
         )
-
         edit_type = st.selectbox(
             t("contact_type"),
-            [
-                t("personal"),
-                t("work")
-            ],
-            index=(
-                1
-                if contact.get("contact_type") == "work"
-                else 0
-            ),
-            key="edit_contact_type"
+            [t("personal"), t("work")],
+            index=1 if contact.get("contact_type") == "work" else 0,
+            key="edit_contact_type",
         )
-
-        database_type = (
-            "work"
-            if edit_type == t("work")
-            else "personal"
-        )
+        database_type = "work" if edit_type == t("work") else "personal"
 
         col1, col2 = st.columns(2)
-
         with col1:
-
             if st.button(
                 t("save_changes"),
                 use_container_width=True,
-                key="save_edit_contact"
+                key="save_edit_contact",
             ):
-
                 try:
-
                     database.update_contact(
                         contact_id=contact["id"],
                         user_id=user["id"],
@@ -2897,52 +2607,35 @@ if (
                         followup=edit_followup.isoformat(),
                         budget=edit_budget,
                         contact_type=database_type,
-                        workspace_id=st.session_state.workspace_id
+                        workspace_id=st.session_state.workspace_id,
                     )
-
-                    st.success(
-                        t("contact_updated")
-                    )
-
+                    st.success(t("contact_updated"))
                     st.session_state.editing_contact_id = None
-
                     st.rerun()
-
                 except Exception as e:
-
-                    logger.log_error(
-                        f"Update contact error: {e}"
-                    )
-
-                    st.error(
-                        tf(
-                            "edit_failed",
-                            error=e
-                        )
-                    )
+                    logger.log_error(f"Update contact error: {e}")
+                    st.error(tf("edit_failed", error=e))
 
         with col2:
-
             if st.button(
                 t("cancel"),
                 use_container_width=True,
-                key="cancel_edit_contact"
+                key="cancel_edit_contact",
             ):
-
                 st.session_state.editing_contact_id = None
                 st.rerun()
+
 
 # =========================================================
 # APP VERSION
 # =========================================================
 
 APP_VERSION = "0.1.1"
+
+
 # =========================================================
 # FOOTER
 # =========================================================
 
 st.divider()
-
-st.caption(
-    t("footer")
-)
+st.caption(t("footer"))
