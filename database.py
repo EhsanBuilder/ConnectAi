@@ -1810,7 +1810,7 @@ def get_dashboard_stats(user_id, workspace_id):
             FROM contacts
             WHERE user_id = ?
             AND workspace_id = ?
-            AND contact_type = 'کاری'
+            AND contact_type = 'work'
             AND deleted = 0
             """,
             (
@@ -2101,6 +2101,7 @@ def delete_contact(contact_id, user_id, workspace_id):
     finally:
 
         conn.close()
+
 def add_finance_transaction(
     user_id,
     workspace_id,
@@ -2116,38 +2117,49 @@ def add_finance_transaction(
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        INSERT INTO finance_transactions (
-            user_id,
-            workspace_id,
-            account_id,
-            category_id,
-            transaction_type,
-            amount,
-            title,
-            description,
-            contact_id,
-            transaction_date
+    try:
+        cursor.execute(
+            """
+            INSERT INTO finance_transactions (
+                user_id,
+                workspace_id,
+                account_id,
+                category_id,
+                transaction_type,
+                amount,
+                title,
+                description,
+                contact_id,
+                transaction_date,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                user_id,
+                workspace_id,
+                account_id,
+                category_id,
+                transaction_type,
+                amount,
+                title,
+                description or "",
+                contact_id,
+                transaction_date or today(),
+                now()
+            )
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            user_id,
-            workspace_id,
-            account_id,
-            category_id,
-            transaction_type,
-            amount,
-            title,
-            description,
-            contact_id,
-            transaction_date or today()
-        )
-    )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+        return cursor.lastrowid
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
+
     
 def get_or_create_finance_category(workspace_id, name):
     conn = get_connection()
