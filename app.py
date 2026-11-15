@@ -13,9 +13,9 @@ import os
 import time
 import re
 from urllib.parse import urlencode
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import streamlit.components.v1 as components
-from PIL import Image
+from PIL import Image, ImageDraw, ImageOps
 import requests
 try:
 
@@ -2197,7 +2197,7 @@ elif st.session_state.page == "add_contact":
     new_budget = st.text_input(t("budget"), key="new_contact_budget")
     new_followup = st.date_input(
         t("followup"),
-        value=date.today(),
+        value=date.today() + timedelta(days=1),
         key="new_contact_followup",
     )
     new_type = st.selectbox(
@@ -2230,7 +2230,12 @@ elif st.session_state.page == "add_contact":
                     vip=1 if new_vip else 0,
                     workspace_id=st.session_state.workspace_id,
                 )
-
+                database.log_activity(
+                    user["id"],
+                    st.session_state.workspace_id,
+                    "مخاطب اضافه شد",
+                    new_name.strip(),
+                )
                 st.session_state.contact_added_ok = True
                 st.rerun()
             except Exception as e:
@@ -2290,69 +2295,104 @@ elif st.session_state.page == "finance":
         if st.button("📊 گزارش مالی", use_container_width=True):
             st.session_state.finance_action = "report"
 
-    if st.session_state.get("finance_action") == "income":
-        st.subheader("➕ ثبت درآمد")
 
-        with st.form("income_form"):
-            amount = st.number_input(
-                "💰 مبلغ درآمد",
-                min_value=0,
-                step=1000,
-            )
-            title = st.text_input(
-                "📝 عنوان درآمد",
-                placeholder="مثلاً فروش محصول",
-            )
-            category = st.text_input(
-                "📂 دسته‌بندی",
-                placeholder="مثلاً فروش",
-            )
-            transaction_date = st.date_input("📅 تاریخ درآمد")
-            description = st.text_area(
-                "📄 توضیحات",
-                placeholder="توضیح اختیاری",
-            )
-            submit = st.form_submit_button("ثبت درآمد")
+if st.session_state.get("finance_action") == "income":
+    st.subheader("➕ ثبت درآمد")
 
+    with st.form("income_form"):
+        amount = st.number_input(
+            "💰 مبلغ درآمد",
+            min_value=0,
+            step=1000,
+        )
+
+        title = st.text_input(
+            "📝 عنوان درآمد",
+            placeholder="مثلاً فروش محصول",
+        )
+
+        category = st.text_input(
+            "📂 دسته‌بندی",
+            placeholder="مثلاً فروش",
+        )
+
+        transaction_date = st.date_input("📅 تاریخ درآمد")
+
+        description = st.text_area(
+            "📄 توضیحات",
+            placeholder="توضیح اختیاری",
+        )
+
+        submit = st.form_submit_button("ثبت درآمد")
 
     if submit:
         if not title.strip():
             st.warning("عنوان درآمد را وارد کن.")
-    elif not category.strip():
-        st.warning("دسته‌بندی را وارد کن.")
-    elif amount <= 0:
-        st.warning("مبلغ باید بیشتر از صفر باشد.")
-    else:
-        try:
-            category_id = database.get_or_create_finance_category(
-                st.session_state.workspace_id,
-                category.strip(),
-            )
 
-            database.add_finance_transaction(
-                user_id=user["id"],
-                workspace_id=st.session_state.workspace_id,
-                transaction_type="income",
-                amount=amount,
-                title=title.strip(),
-                category_id=category_id,
-                description=description,
-                transaction_date=str(transaction_date),
-            )
+        elif not category.strip():
+            st.warning("دسته‌بندی را وارد کن.")
 
-            st.success("درآمد با موفقیت ثبت شد ✅")
+        elif amount <= 0:
+            st.warning("مبلغ باید بیشتر از صفر باشد.")
 
-        except Exception as e:
-            logger.log_error(f"Income save error: {e}")
-            st.error(f"ثبت درآمد ناموفق بود: {e}")
+        else:
+            try:
+                category_id = database.get_or_create_finance_category(
+                    st.session_state.workspace_id,
+                    category.strip(),
+                )
+
+                database.add_finance_transaction(
+                    user_id=user["id"],
+                    workspace_id=st.session_state.workspace_id,
+                    transaction_type="income",
+                    amount=amount,
+                    title=title.strip(),
+                    category_id=category_id,
+                    description=description,
+                    transaction_date=str(transaction_date),
+                )
+
+                st.success("درآمد با موفقیت ثبت شد ✅")
+
+            except Exception as e:
+                logger.log_error(f"Income save error: {e}")
+                st.error(f"ثبت درآمد ناموفق بود: {e}")
 
 
+def get_finance_transactions(user_id, workspace_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT
+                id,
+                transaction_type,
+                amount,
+                title,
+                description,
+                transaction_date,
+                created_at
+            FROM finance_transactions
+            WHERE user_id = ?
+            AND workspace_id = ?
+            ORDER BY transaction_date DESC, id DESC
+            """,
+            (user_id, workspace_id)
+        )
+
+        return cursor.fetchall()
+
+    finally:
+        conn.close()
 
 # =========================================================
-# PROFILE
+# SETTINGS
 # =========================================================
 
-elif st.session_state.page == "settings":
+if st.session_state.page == "settings":
     st.header(t("profile"))
 
     col1, col2 = st.columns([1, 3])
@@ -2361,172 +2401,42 @@ elif st.session_state.page == "settings":
         show_avatar(user, 100)
 
         uploaded_avatar = st.file_uploader(
-            "📷 تغییر عکس پروفایل",
+            "تغییر تصویر پروفایل",
             type=["png", "jpg", "jpeg"],
-            key="avatar_upload",
         )
 
         if uploaded_avatar:
-            avatar_dir = os.path.join(BASE_DIR, "avatars")
-            os.makedirs(avatar_dir, exist_ok=True)
-            avatar_path = os.path.join(avatar_dir, f"user_{user['id']}.png")
+            avatar_id = f"{uploaded_avatar.name}-{uploaded_avatar.size}"
 
-            image = Image.open(uploaded_avatar)
-            image.save(avatar_path)
+            if st.session_state.get("last_avatar") != avatar_id:
+                avatar_dir = os.path.join(BASE_DIR, "avatars")
+                os.makedirs(avatar_dir, exist_ok=True)
+                avatar_path = os.path.join(avatar_dir, f"user_{user['id']}.png")
 
-            database.update_user_avatar(user["id"], avatar_path)
-            user["avatar"] = avatar_path
-            st.session_state.user = user
-            save_session(user)
+                image = Image.open(uploaded_avatar)
+                image = ImageOps.exif_transpose(image).convert("RGBA")
+                image = ImageOps.fit(image, (256, 256))
 
-            st.success("عکس پروفایل ذخیره شد ✅")
-            st.rerun()
+                mask = Image.new("L", (256, 256), 0)
+                ImageDraw.Draw(mask).ellipse((0, 0, 256, 256), fill=255)
+                image.putalpha(mask)
+
+                image.save(avatar_path)
+
+                database.update_user_avatar(user["id"], avatar_path)
+                user["avatar"] = avatar_path
+                st.session_state.user = user
+                save_session(user)
+
+                st.session_state.last_avatar = avatar_id
+                st.rerun()
 
     with col2:
-        st.subheader(user.get("name", ""))
-        st.write(f"📧 {user.get('email', '')}")
-        st.write(f"💎 {t('plan')}: {user.get('plan', 'free')}")
+        st.subheader(t("account_info"))
+        st.write(f"**{t('name')}:** {user.get('name', '')}")
+        st.write(f"**{t('email')}:** {user.get('email', '')}")
+        st.write(f"**{t('plan')}:** {user.get('plan', 'free')}")
 
-    st.divider()
-    st.subheader(t("account_info"))
-
-    profile_name = st.text_input(
-        t("name"),
-        value=user.get("name", ""),
-        key="profile_name",
-    )
-
-    if st.button(t("save_name"), key="save_profile_name"):
-        try:
-            database.update_user_name(user["id"], profile_name.strip())
-            user["name"] = profile_name.strip()
-            st.session_state.user = user
-            save_session(user)
-            st.success(t("name_updated"))
-            st.rerun()
-        except Exception as e:
-            logger.log_error(f"Profile update error: {e}")
-            st.error(tf("profile_update_failed", error=e))
-
-
-# =========================================================
-# GOOGLE CALENDAR FORM
-# =========================================================
-
-if (
-    st.session_state.page == "contacts"
-    and st.session_state.calendar_form_open
-    and st.session_state.calendar_contact_id
-):
-    calendar_contact = database.get_contact(
-        st.session_state.calendar_contact_id,
-        user["id"],
-        st.session_state.workspace_id,
-    )
-
-    if calendar_contact:
-        st.divider()
-        st.subheader(tf("meeting_for", name=calendar_contact["name"]))
-
-        event_title = st.text_input(
-            t("meeting_title"),
-            value=tf("meeting_default_title", name=calendar_contact["name"]),
-            key="calendar_event_title",
-        )
-        event_date = st.date_input(
-            t("meeting_date"),
-            value=date.today(),
-            key="calendar_event_date",
-        )
-
-        col1, col2 = st.columns(2)
-        with col1:
-            start_time = st.time_input(
-                t("start_time"),
-                value=datetime.strptime("10:00", "%H:%M").time(),
-                key="calendar_start_time",
-            )
-        with col2:
-            end_time = st.time_input(
-                t("end_time"),
-                value=datetime.strptime("11:00", "%H:%M").time(),
-                key="calendar_end_time",
-            )
-
-        event_description = st.text_area(
-            t("description"),
-            value=tf(
-                "meeting_default_description",
-                name=calendar_contact["name"],
-            ),
-            key="calendar_event_description",
-        )
-
-        col1, col2 = st.columns(2)
-        with col1:
-            create_event = st.button(
-                t("create_meeting"),
-                use_container_width=True,
-                key="create_calendar_event",
-            )
-        with col2:
-            cancel_event = st.button(
-                t("cancel"),
-                use_container_width=True,
-                key="cancel_calendar_event",
-            )
-
-        if cancel_event:
-            st.session_state.calendar_contact_id = None
-            st.session_state.calendar_form_open = False
-            st.rerun()
-
-        if create_event:
-            if end_time <= start_time:
-                st.error(t("end_time_error"))
-            else:
-                try:
-                    start_datetime = datetime.combine(
-                        event_date,
-                        start_time,
-                    ).isoformat()
-                    end_datetime = datetime.combine(
-                        event_date,
-                        end_time,
-                    ).isoformat()
-
-                    with st.spinner(t("creating_meeting")):
-                        result = create_calendar_event(
-                            user_id=user["id"],
-                            workspace_id=st.session_state.workspace_id,
-                            title=event_title,
-                            start_datetime=start_datetime,
-                            end_datetime=end_datetime,
-                            description=event_description,
-                        )
-
-                    if result.get("success"):
-                        st.success(t("meeting_created"))
-                        event_link = result.get("event_link")
-
-                        if event_link:
-                            st.link_button(
-                                t("open_calendar"),
-                                event_link,
-                                use_container_width=True,
-                            )
-
-                        st.session_state.calendar_contact_id = None
-                        st.session_state.calendar_form_open = False
-                    else:
-                        st.error(t("meeting_failed"))
-                        st.error(result.get("message", t("unknown_error")))
-
-                except Exception as e:
-                    logger.log_error(
-                        f"Google Calendar event creation error: {e}"
-                    )
-                    st.error(tf("calendar_error", error=e))
 
 
 # =========================================================
@@ -2544,6 +2454,8 @@ if (
     )
 
     if contact:
+        contact = dict(contact)  # تغییر ۱
+
         st.divider()
         st.subheader(tf("edit_contact", name=contact["name"]))
 
@@ -2569,7 +2481,7 @@ if (
         )
         edit_budget = st.text_input(
             t("budget"),
-            value=contact.get("budget", ""),
+            value=str(contact.get("budget") or ""),  # تغییر ۲
             key="edit_budget",
         )
         edit_followup = st.date_input(
@@ -2589,6 +2501,12 @@ if (
         )
         database_type = "work" if edit_type == t("work") else "personal"
 
+        edit_vip = st.checkbox(  # تغییر ۳
+            t("vip"),
+            value=bool(contact.get("vip")),
+            key="edit_vip",
+        )
+
         col1, col2 = st.columns(2)
         with col1:
             if st.button(
@@ -2607,6 +2525,7 @@ if (
                         followup=edit_followup.isoformat(),
                         budget=edit_budget,
                         contact_type=database_type,
+                        vip=1 if edit_vip else 0,  # تغییر ۳
                         workspace_id=st.session_state.workspace_id,
                     )
                     st.success(t("contact_updated"))
