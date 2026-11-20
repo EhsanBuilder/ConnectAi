@@ -17,15 +17,20 @@ from datetime import date, datetime, timedelta
 import streamlit.components.v1 as components
 from PIL import Image, ImageDraw, ImageOps
 import requests
-try:
+import finance_queries
+from st_keyup import st_keyup
 
-    database.init_finance_tables()
 
-except Exception as e:
 
-    logger.log_error(
-        f"Finance init error: {e}"
-    )
+
+
+
+
+
+
+
+
+
 
 # =========================================================
 # CONFIG
@@ -44,11 +49,27 @@ IRAN_FLAG_FILE = os.path.join(
 
 st.set_page_config(
     page_title="ConnectAI",
-    page_icon="🚀",
+    page_icon=None,
     layout="wide"
 )
+# =========================================================
+# LOADING SCREEN
+# =========================================================
 
-logger.log_info("ConnectAI started")
+
+
+
+# =========================================================
+# DATABASE
+# =========================================================
+
+database.init_db()
+
+try:
+    database.init_finance_tables()
+except Exception as e:
+    logger.log_error(f"Finance init error: {e}")
+    st.error(f"Finance database error: {e}")
 
 
 # =========================================================
@@ -223,7 +244,7 @@ DEFAULTS = {
     "page": "dashboard",
     "settings_section": "profile",
     "workspace_id": None,
-    "language": "🇮🇷 فارسی",
+    "language": "🇺🇸 English",
     "ai_results": {},
     "editing_contact_id": None,
     "selected_contact_id": None,
@@ -377,11 +398,11 @@ else:
 
 texts = {
 
-    "title": {
-        "fa": "🚀 ConnectAI",
-        "en": "🚀 ConnectAI",
-        "es": "🚀 ConnectAI"
-    },
+"title": {
+    "fa": "ConnectAI",
+    "en": "ConnectAI",
+    "es": "ConnectAI"
+},
     "total_contacts": {
         "fa": "کل مخاطبین",
         "en": "Total contacts",
@@ -1043,6 +1064,8 @@ Keep the answer short and practical.""",
 Responde de forma breve y práctica."""
     },
 
+
+
     "calendar_error": {
         "fa": "❌ خطا در ساخت جلسه: {error}",
         "en": "❌ Calendar error: {error}",
@@ -1077,11 +1100,11 @@ Responde de forma breve y práctica."""
         "en": "➕ Add your first contact",
         "es": "➕ Añade tu primer contacto"
     },
-    "footer": {
-        "fa": "🚀 ConnectAI — مدیریت هوشمند مخاطبین",
-        "en": "🚀 ConnectAI — Smart Contact Management",
-        "es": "🚀 ConnectAI — Gestión inteligente de contactos"
-    }
+"footer": {
+    "fa": "ConnectAI — مدیریت هوشمند مخاطبین",
+    "en": "ConnectAI — Smart Contact Management",
+    "es": "ConnectAI — Gestión inteligente de contactos"
+}
 }
 
 
@@ -2106,9 +2129,11 @@ elif st.session_state.page == "contacts":
     st.header(t("contacts"))
     st.caption("مخاطبین خود را جستجو و مدیریت کنید.")
 
-    search = st.text_input(
+    search = st_keyup(
         "🔎 جستجوی مخاطب",
         placeholder="نام، شماره یا ایمیل...",
+        debounce=300,
+        key="contact_search",
     )
 
     contacts = database.get_contacts(
@@ -2180,6 +2205,114 @@ elif st.session_state.page == "contacts":
                         st.session_state.editing_contact_id = None
                         st.rerun()
 
+
+# =========================================================
+# CREATE MEETING FORM
+# =========================================================
+
+if st.session_state.get("calendar_form_open", False):
+
+    meeting_contact_id = st.session_state.get("calendar_contact_id")
+
+    if meeting_contact_id:
+        meeting_contact = database.get_contact(
+            meeting_contact_id,
+            user["id"],
+            st.session_state.workspace_id,
+        )
+
+        if meeting_contact:
+            st.divider()
+            st.subheader(
+                tf("meeting_for", name=meeting_contact["name"])
+            )
+
+            with st.form("create_meeting_form"):
+
+                meeting_title = st.text_input(
+                    t("meeting_title"),
+                    value=tf(
+                        "meeting_default_title",
+                        name=meeting_contact["name"]
+                    ),
+                )
+
+                meeting_date = st.date_input(
+                    t("meeting_date"),
+                    value=date.today() + timedelta(days=1),
+                )
+
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    start_time = st.time_input(
+                        t("start_time"),
+                        value=datetime.now().replace(
+                            hour=10, minute=0, second=0
+                        ).time(),
+                    )
+
+                with col2:
+                    end_time = st.time_input(
+                        t("end_time"),
+                        value=datetime.now().replace(
+                            hour=11, minute=0, second=0
+                        ).time(),
+                    )
+
+                meeting_description = st.text_area(
+                    t("description"),
+                    value=tf(
+                        "meeting_default_description",
+                        name=meeting_contact["name"]
+                    ),
+                )
+
+                submitted = st.form_submit_button(
+                    t("create_meeting"),
+                    use_container_width=True,
+                )
+
+            if submitted:
+
+                if end_time <= start_time:
+                    st.error(t("end_time_error"))
+
+                else:
+                    start_datetime = datetime.combine(
+                        meeting_date,
+                        start_time
+                    ).isoformat()
+
+                    end_datetime = datetime.combine(
+                        meeting_date,
+                        end_time
+                    ).isoformat()
+
+                    result = create_calendar_event(
+                        user_id=user["id"],
+                        workspace_id=st.session_state.workspace_id,
+                        title=meeting_title,
+                        start_datetime=start_datetime,
+                        end_datetime=end_datetime,
+                        description=meeting_description
+                    )
+
+                    if result["success"]:
+                        st.success("جلسه با موفقیت ساخته شد!")
+
+                        if result.get("event_link"):
+                            st.markdown(
+                                f"[مشاهده جلسه در Google Calendar]({result['event_link']})"
+                            )
+
+                        st.session_state.calendar_form_open = False
+                        st.session_state.calendar_contact_id = None
+
+                        st.rerun()
+
+                    else:
+                        st.error(result["message"])
 
 # =========================================================
 # ADD CONTACT
@@ -2284,106 +2417,113 @@ elif st.session_state.page == "finance":
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("➕ ثبت درآمد", use_container_width=True):
+        if st.button("ثبت درآمد", use_container_width=True):
             st.session_state.finance_action = "income"
 
     with col2:
-        if st.button("➖ ثبت هزینه", use_container_width=True):
+        if st.button("ثبت هزینه", use_container_width=True):
             st.session_state.finance_action = "expense"
 
     with col3:
-        if st.button("📊 گزارش مالی", use_container_width=True):
+        if st.button("گزارش مالی", use_container_width=True):
             st.session_state.finance_action = "report"
 
+    action = st.session_state.get("finance_action", "report")
 
-if st.session_state.get("finance_action") == "income":
-    st.subheader("➕ ثبت درآمد")
+    # ---------- فرم ثبت درآمد / هزینه ----------
+    if action in ("income", "expense"):
+        is_income = action == "income"
+        label = "درآمد" if is_income else "هزینه"
 
-    with st.form("income_form"):
-        amount = st.number_input(
-            "💰 مبلغ درآمد",
-            min_value=0,
-            step=1000,
+        st.subheader(f"ثبت {label}")
+
+        with st.form(f"{action}_form"):
+            amount = st.number_input(f"مبلغ {label}", min_value=0, step=1000)
+            title = st.text_input(f"عنوان {label}")
+            category = st.text_input("دسته‌بندی")
+            transaction_date = st.date_input("تاریخ")
+            description = st.text_area("توضیحات (اختیاری)")
+            submit = st.form_submit_button(f"ثبت {label}")
+
+        if submit:
+            if not title.strip():
+                st.warning("عنوان را وارد کن.")
+            elif not category.strip():
+                st.warning("دسته‌بندی را وارد کن.")
+            elif amount <= 0:
+                st.warning("مبلغ باید بیشتر از صفر باشد.")
+            else:
+                try:
+                    category_id = finance_queries.get_or_create_finance_category(
+                        st.session_state.workspace_id,
+                        category.strip(),
+                        action,
+                    )
+
+                    database.add_finance_transaction(
+                        user_id=user["id"],
+                        workspace_id=st.session_state.workspace_id,
+                        transaction_type=action,
+                        amount=int(amount),
+                        title=title.strip(),
+                        category_id=category_id,
+                        description=description,
+                        transaction_date=str(transaction_date),
+                    )
+
+                    st.success(f"{label} با موفقیت ثبت شد")
+
+                except Exception as e:
+                    logger.log_error(f"Finance save error: {e}")
+                    st.error(f"ثبت ناموفق بود: {e}")
+
+    # ---------- گزارش مالی ----------
+    elif action == "report":
+        st.subheader("گزارش مالی")
+
+        summary = finance_queries.get_finance_summary(
+            user["id"], st.session_state.workspace_id
         )
 
-        title = st.text_input(
-            "📝 عنوان درآمد",
-            placeholder="مثلاً فروش محصول",
-        )
-
-        category = st.text_input(
-            "📂 دسته‌بندی",
-            placeholder="مثلاً فروش",
-        )
-
-        transaction_date = st.date_input("📅 تاریخ درآمد")
-
-        description = st.text_area(
-            "📄 توضیحات",
-            placeholder="توضیح اختیاری",
-        )
-
-        submit = st.form_submit_button("ثبت درآمد")
-
-    if submit:
-        if not title.strip():
-            st.warning("عنوان درآمد را وارد کن.")
-
-        elif not category.strip():
-            st.warning("دسته‌بندی را وارد کن.")
-
-        elif amount <= 0:
-            st.warning("مبلغ باید بیشتر از صفر باشد.")
-
-        else:
-            try:
-                category_id = database.get_or_create_finance_category(
-                    st.session_state.workspace_id,
-                    category.strip(),
-                )
-
-                database.add_finance_transaction(
-                    user_id=user["id"],
-                    workspace_id=st.session_state.workspace_id,
-                    transaction_type="income",
-                    amount=amount,
-                    title=title.strip(),
-                    category_id=category_id,
-                    description=description,
-                    transaction_date=str(transaction_date),
-                )
-
-                st.success("درآمد با موفقیت ثبت شد ✅")
-
-            except Exception as e:
-                logger.log_error(f"Income save error: {e}")
-                st.error(f"ثبت درآمد ناموفق بود: {e}")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("جمع درآمد", f"{summary['income']:,}")
+        c2.metric("جمع هزینه", f"{summary['expense']:,}")
+        c3.metric("سود", f"{summary['profit']:,}")
 
 
-def get_finance_transactions(user_id, workspace_id):
+
+
+def get_or_create_finance_category(workspace_id, name, category_type="income"):
     conn = get_connection()
     cursor = conn.cursor()
 
     try:
         cursor.execute(
             """
-            SELECT
-                id,
-                transaction_type,
-                amount,
-                title,
-                description,
-                transaction_date,
-                created_at
-            FROM finance_transactions
-            WHERE user_id = ?
-            AND workspace_id = ?
-            ORDER BY transaction_date DESC, id DESC
+            SELECT id FROM finance_categories
+            WHERE workspace_id = ?
+            AND name = ?
+            AND category_type = ?
             """,
-            (user_id, workspace_id)
+            (workspace_id, name.strip(), category_type)
         )
 
-        return cursor.fetchall()
+        category = cursor.fetchone()
+
+        if category:
+            return category["id"]
+
+        cursor.execute(
+            """
+            INSERT INTO finance_categories
+            (workspace_id, name, category_type, created_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (workspace_id, name.strip(), category_type, now())
+        )
+
+        conn.commit()
+        return cursor.lastrowid
 
     finally:
         conn.close()
@@ -2558,3 +2698,62 @@ APP_VERSION = "0.1.1"
 
 st.divider()
 st.caption(t("footer"))
+def get_finance_transactions(user_id, workspace_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT
+                t.id,
+                t.transaction_type,
+                t.amount,
+                t.title,
+                c.name AS category,
+                t.description,
+                t.transaction_date
+            FROM finance_transactions t
+            LEFT JOIN finance_categories c ON c.id = t.category_id
+            WHERE t.user_id = ?
+            AND t.workspace_id = ?
+            ORDER BY t.transaction_date DESC, t.id DESC
+            """,
+            (user_id, workspace_id)
+        )
+
+        return cursor.fetchall()
+
+    finally:
+        conn.close()
+
+
+def get_finance_summary(user_id, workspace_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT transaction_type, COALESCE(SUM(amount), 0) AS total
+            FROM finance_transactions
+            WHERE user_id = ?
+            AND workspace_id = ?
+            GROUP BY transaction_type
+            """,
+            (user_id, workspace_id)
+        )
+
+        totals = {row["transaction_type"]: row["total"] for row in cursor.fetchall()}
+
+        income = totals.get("income", 0)
+        expense = totals.get("expense", 0)
+
+        return {
+            "income": income,
+            "expense": expense,
+            "profit": income - expense
+        }
+
+    finally:
+        conn.close()
