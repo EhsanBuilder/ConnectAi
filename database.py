@@ -1309,33 +1309,38 @@ def create_finance_debts(cursor):
 
     """)
 def init_finance_tables():
-
     conn = get_connection()
     cursor = conn.cursor()
 
-    create_finance_accounts(cursor)
-    create_finance_categories(cursor)
-    create_finance_transactions(cursor)
-    create_finance_ledger(cursor)
-    create_invoices(cursor)
-    create_invoice_items(cursor)
-    create_payments(cursor)
-    create_finance_debts(cursor)
+    functions = [
+        ("finance_accounts", create_finance_accounts),
+        ("finance_categories", create_finance_categories),
+        ("finance_transactions", create_finance_transactions),
+        ("finance_ledger", create_finance_ledger),
+        ("invoices", create_invoices),
+        ("invoice_items", create_invoice_items),
+        ("payments", create_payments),
+        ("finance_debts", create_finance_debts),
+    ]
 
-    conn.commit()
-    conn.close()
+    try:
+        for name, func in functions:
+            try:
+                func(cursor)
+                print(f"FINANCE INIT OK: {name}")
+            except Exception as e:
+                print(f"FINANCE INIT ERROR in {name}: {e}")
+                raise
 
-    create_finance_accounts(cursor)
-    create_finance_categories(cursor)
-    create_finance_transactions(cursor)
-    create_finance_ledger(cursor)
-    create_invoices(cursor)
-    create_invoice_items(cursor)
-    create_payments(cursor)
-    create_finance_debts(cursor)
+        conn.commit()
 
-    conn.commit()
-    conn.close()
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
+        
 # =========================================================
 # FINANCE CORE SYSTEM
 # Professional Accounting Engine
@@ -2304,6 +2309,126 @@ def log_activity(user_id, workspace_id, action, description=""):
 
         conn.rollback()
         raise
+
+    finally:
+
+        conn.close()
+        # =========================================================
+# GOOGLE CREDENTIALS
+# =========================================================
+
+def _create_google_table(cursor):
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS google_credentials (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            workspace_id INTEGER NOT NULL,
+            access_token TEXT,
+            refresh_token TEXT,
+            token_uri TEXT,
+            client_id TEXT,
+            client_secret TEXT,
+            scopes TEXT,
+            updated_at TEXT,
+            UNIQUE(user_id, workspace_id)
+        )
+    """)
+
+
+def save_google_credentials(
+    user_id,
+    workspace_id,
+    access_token,
+    refresh_token,
+    token_uri,
+    client_id,
+    client_secret,
+    scopes
+):
+    import json
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+
+        _create_google_table(cursor)
+
+        cursor.execute(
+            """
+            INSERT INTO google_credentials
+            (user_id, workspace_id, access_token, refresh_token,
+             token_uri, client_id, client_secret, scopes, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, workspace_id) DO UPDATE SET
+                access_token = excluded.access_token,
+                refresh_token = COALESCE(
+                    excluded.refresh_token,
+                    google_credentials.refresh_token
+                ),
+                token_uri = excluded.token_uri,
+                client_id = excluded.client_id,
+                client_secret = excluded.client_secret,
+                scopes = excluded.scopes,
+                updated_at = excluded.updated_at
+            """,
+            (
+                user_id,
+                workspace_id,
+                access_token,
+                refresh_token,
+                token_uri,
+                client_id,
+                client_secret,
+                json.dumps(list(scopes or [])),
+                now()
+            )
+        )
+
+        conn.commit()
+        return True
+
+    except Exception as e:
+
+        conn.rollback()
+        print(f"Google credentials save error: {e}")
+        return False
+
+    finally:
+
+        conn.close()
+
+
+def get_google_credentials(user_id, workspace_id):
+    import json
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+
+        _create_google_table(cursor)
+
+        cursor.execute(
+            """
+            SELECT *
+            FROM google_credentials
+            WHERE user_id = ?
+            AND workspace_id = ?
+            """,
+            (user_id, workspace_id)
+        )
+
+        row = cursor.fetchone()
+
+        if not row:
+            return None
+
+        data = dict(row)
+        data["scopes"] = json.loads(data["scopes"] or "[]")
+
+        return data
 
     finally:
 
