@@ -2578,7 +2578,11 @@ if st.session_state.page == "settings":
         st.write(f"**{t('plan')}:** {user.get('plan', 'free')}")
 
 
-
+    with col2:
+        st.subheader(t("account_info"))
+        st.write(f"**{t('name')}:** {user.get('name', '')}")
+        st.write(f"**{t('email')}:** {user.get('email', '')}")
+        st.write(f"**{t('plan')}:** {user.get('plan', 'free')}")
 # =========================================================
 # EDIT CONTACT
 # =========================================================
