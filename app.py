@@ -254,8 +254,14 @@ DEFAULTS = {
     "calendar_contact_id": None,
     "calendar_form_open": False,
     "contact_selected_message": None,
-    "greeting_seed": None
+    "greeting_seed": None,
+        "greeting_seed": None,
+    "deleting_contact_id": None,
+    "greeting_seed": None,
+    "deleting_contact_id": None
 }
+
+
 
 for key, value in DEFAULTS.items():
     if key not in st.session_state:
@@ -2125,6 +2131,7 @@ if st.session_state.page == "dashboard":
 # CONTACTS
 # =========================================================
 
+
 elif st.session_state.page == "contacts":
     st.header(t("contacts"))
     st.caption("مخاطبین خود را جستجو و مدیریت کنید.")
@@ -2139,7 +2146,7 @@ elif st.session_state.page == "contacts":
     contacts = database.get_contacts(
         user_id=user["id"],
         workspace_id=st.session_state.workspace_id,
-        search=search.strip(),
+        search=(search or "").strip(),
     )
 
     st.caption(f"تعداد مخاطبین: {len(contacts)}")
@@ -2182,7 +2189,7 @@ elif st.session_state.page == "contacts":
                     if contact["note"]:
                         st.write(f"📝 {contact['note']}")
 
-                btn1, btn2 = st.columns(2)
+                btn1, btn2, btn3 = st.columns(3)
 
                 with btn1:
                     if st.button(
@@ -2194,6 +2201,65 @@ elif st.session_state.page == "contacts":
                         st.session_state.calendar_form_open = False
                         st.rerun()
 
+                with btn3:
+                    if st.button(
+                        t("delete"),
+                        use_container_width=True,
+                        key=f"delete_{contact['id']}",
+                    ):
+                        st.session_state.deleting_contact_id = contact["id"]
+                        st.session_state.editing_contact_id = None
+                        st.session_state.calendar_form_open = False
+                        st.rerun()
+
+                if st.session_state.deleting_contact_id == contact["id"]:
+                    st.warning(
+                        f"مخاطب «{contact['name']}» حذف شود؟"
+                    )
+
+                    yes_col, no_col = st.columns(2)
+
+                    with yes_col:
+                        if st.button(
+                            "بله، حذف کن",
+                            type="primary",
+                            use_container_width=True,
+                            key=f"confirm_delete_{contact['id']}",
+                        ):
+                            database.delete_contact(
+                                contact["id"],
+                                user["id"],
+                                st.session_state.workspace_id,
+                            )
+
+                            database.log_activity(
+                                user["id"],
+                                st.session_state.workspace_id,
+                                "مخاطب حذف شد",
+                                contact["name"],
+                            )
+
+                            st.session_state.deleting_contact_id = None
+                            st.rerun()
+
+                    with no_col:
+                        if st.button(
+                            "لغو",
+                            use_container_width=True,
+                            key=f"cancel_delete_{contact['id']}",
+                        ):
+                            st.session_state.deleting_contact_id = None
+                            st.rerun()
+
+
+                    with no_col:
+                        if st.button(
+                            t("cancel"),
+                            use_container_width=True,
+                            key=f"cancel_delete_{contact['id']}",
+                        ):
+                            st.session_state.deleting_contact_id = None
+                            st.rerun()
                 with btn2:
                     if st.button(
                         t("new_meeting"),
