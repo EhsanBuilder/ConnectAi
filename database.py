@@ -2400,36 +2400,49 @@ def save_google_credentials(
         conn.close()
 
 
-def get_google_credentials(user_id, workspace_id):
-    import json
 
+def delete_user_account(user_id):
     conn = get_connection()
     cursor = conn.cursor()
 
     try:
-
-        _create_google_table(cursor)
-
+        # بررسی وجود حساب
         cursor.execute(
-            """
-            SELECT *
-            FROM google_credentials
-            WHERE user_id = ?
-            AND workspace_id = ?
-            """,
-            (user_id, workspace_id)
+            "SELECT id FROM users WHERE id = ?",
+            (user_id,)
         )
 
-        row = cursor.fetchone()
+        if not cursor.fetchone():
+            return False
 
-        if not row:
-            return None
+        # بررسی وجود جدول اطلاعات Google
+        cursor.execute("""
+            SELECT name FROM sqlite_master
+            WHERE type = 'table'
+            AND name = 'google_credentials'
+        """)
 
-        data = dict(row)
-        data["scopes"] = json.loads(data["scopes"] or "[]")
+        if cursor.fetchone():
+            cursor.execute(
+                "DELETE FROM google_credentials WHERE user_id = ?",
+                (user_id,)
+            )
 
-        return data
+        # حذف حساب و اطلاعات وابسته با CASCADE
+        cursor.execute(
+            "DELETE FROM users WHERE id = ?",
+            (user_id,)
+        )
+
+        deleted = cursor.rowcount > 0
+
+        conn.commit()
+        return deleted
+
+    except Exception:
+        conn.rollback()
+        raise
 
     finally:
-
         conn.close()
+
