@@ -2400,7 +2400,45 @@ def save_google_credentials(
         conn.close()
 
 
+def get_google_credentials(user_id, workspace_id):
+    import json
 
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        _create_google_table(cursor)
+
+        cursor.execute(
+            """
+            SELECT access_token, refresh_token, token_uri,
+                   client_id, client_secret, scopes
+            FROM google_credentials
+            WHERE user_id = ? AND workspace_id = ?
+            """,
+            (user_id, workspace_id)
+        )
+
+        row = cursor.fetchone()
+
+        if not row:
+            return None
+
+        return {
+            "access_token": row[0],
+            "refresh_token": row[1],
+            "token_uri": row[2],
+            "client_id": row[3],
+            "client_secret": row[4],
+            "scopes": json.loads(row[5] or "[]"),
+        }
+
+    except Exception as e:
+        print(f"Google credentials get error: {e}")
+        return None
+
+    finally:
+        conn.close()
 def delete_user_account(user_id):
     conn = get_connection()
     cursor = conn.cursor()
