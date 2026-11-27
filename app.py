@@ -399,724 +399,12 @@ else:
 
 
 # =========================================================
-# TEXTS
-# =========================================================
-
-texts = {
-
-"title": {
-    "fa": "ConnectAI",
-    "en": "ConnectAI",
-    "es": "ConnectAI"
-},
-    "total_contacts": {
-        "fa": "کل مخاطبین",
-        "en": "Total contacts",
-        "es": "Total de contactos"
-    },
-
-    "business_contacts": {
-        "fa": "مخاطبین کاری",
-        "en": "Business contacts",
-        "es": "Contactos de trabajo"
-    },
-
-    "today": {
-        "fa": "امروز",
-        "en": "Today",
-        "es": "Hoy"
-    },
-
-    "overdue": {
-        "fa": "عقب‌افتاده",
-        "en": "Overdue",
-        "es": "Atrasados"
-    },
-"nav_settings": {
-    "fa": "تنظیمات",
-    "en": "Settings",
-    "es": "Configuración"
-},
-    "subtitle": {
-        "fa": "دستیار هوشمند مدیریت مخاطبین",
-        "en": "Smart Contact Management Assistant",
-        "es": "Asistente inteligente de gestión de contactos"
-    },
-"settings": {
-    "fa": "تنظیمات",
-    "en": "Settings",
-    "es": "Configuración"
-},
-    "login": {
-        "fa": "🔐 ورود",
-        "en": "🔐 Login",
-        "es": "🔐 Iniciar sesión"
-    },
-
-    "register": {
-        "fa": "📝 ثبت نام",
-        "en": "📝 Register",
-        "es": "📝 Registrarse"
-    },
-
-    "name": {
-        "fa": "نام",
-        "en": "Name",
-        "es": "Nombre"
-    },
-
-    "email": {
-        "fa": "ایمیل",
-        "en": "Email",
-        "es": "Correo electrónico"
-    },
-
-    "password": {
-        "fa": "رمز عبور",
-        "en": "Password",
-        "es": "Contraseña"
-    },
-
-    "confirm_password": {
-        "fa": "تکرار رمز عبور",
-        "en": "Confirm Password",
-        "es": "Confirmar contraseña"
-    },
-
-    "dashboard": {
-        "fa": "📊 داشبورد",
-        "en": "📊 Dashboard",
-        "es": "📊 Panel"
-    },
-
-    "contacts": {
-        "fa": "👥 مخاطبین",
-        "en": "👥 Contacts",
-        "es": "👥 Contactos"
-    },
-
-    "add_contact": {
-        "fa": "➕ افزودن مخاطب",
-        "en": "➕ Add Contact",
-        "es": "➕ Añadir contacto"
-    },
-
-    "profile": {
-        "fa": "👤 پروفایل",
-        "en": "👤 Profile",
-        "es": "👤 Perfil"
-    },
-
-    "activity": {
-        "fa": "📜 فعالیت‌ها",
-        "en": "📜 Activity",
-        "es": "📜 Actividad"
-    },
-
-    "finance": {
-        "fa": "💰 امور مالی",
-        "en": "💰 Finance",
-        "es": "💰 Finanzas"
-    },
-
-    "phone": {
-        "fa": "شماره تلفن",
-        "en": "Phone",
-        "es": "Teléfono"
-    },
-
-    "note": {
-        "fa": "یادداشت",
-        "en": "Note",
-        "es": "Nota"
-    },
-
-    "followup": {
-        "fa": "تاریخ پیگیری",
-        "en": "Follow-up",
-        "es": "Seguimiento"
-    },
-
-    "budget": {
-        "fa": "بودجه",
-        "en": "Budget",
-        "es": "Presupuesto"
-    },
-
-    "vip": {
-        "fa": " VIP",
-        "en": " VIP",
-        "es": " VIP"
-    },
-
-    "edit": {
-        "fa": "✏️ ویرایش",
-        "en": "✏️ Edit",
-        "es": "✏️ Editar"
-    },
-
-    "delete": {
-        "fa": "🗑️ حذف",
-        "en": "🗑️ Delete",
-        "es": "🗑️ Eliminar"
-    },
-
-    "save": {
-        "fa": "💾 ذخیره",
-        "en": "💾 Save",
-        "es": "💾 Guardar"
-    },
-
-    "cancel": {
-        "fa": "❌ لغو",
-        "en": "❌ Cancel",
-        "es": "❌ Cancelar"
-    },
-
-    "smart_analysis": {
-        "fa": "🤖 تحلیل هوشمند",
-        "en": "🤖 Smart Analysis",
-        "es": "🤖 Análisis inteligente"
-    },
-
-    "ai_loading": {
-        "fa": "🤖 در حال تحلیل...",
-        "en": "🤖 Analyzing...",
-        "es": "🤖 Analizando..."
-    },
-
-    "ai_result": {
-        "fa": "🤖 نتیجه تحلیل",
-        "en": "🤖 AI Result",
-        "es": "🤖 Resultado de IA"
-    },
-
-
-
-"logout": {
-    "fa": "خروج",
-    "en": "Logout",
-    "es": "Cerrar sesión"
-},
-
-    "login_success": {
-        "fa": "ورود موفق بود ✅",
-        "en": "Login successful ✅",
-        "es": "Inicio de sesión exitoso ✅"
-    },
-
-    "login_error": {
-        "fa": "ایمیل یا رمز اشتباه است ❌",
-        "en": "Wrong email or password ❌",
-        "es": "Correo electrónico o contraseña incorrectos ❌"
-    },
-
-    "register_success": {
-        "fa": "حساب ساخته شد 🎉",
-        "en": "Account created 🎉",
-        "es": "Cuenta creada 🎉"
-    },
-
-    "contact_added": {
-        "fa": "مخاطب اضافه شد ✅",
-        "en": "Contact added ✅",
-        "es": "Contacto añadido ✅"
-    },
-
-    "contact_updated": {
-        "fa": "مخاطب بروزرسانی شد ✅",
-        "en": "Contact updated ✅",
-        "es": "Contacto actualizado ✅"
-    },
-
-    "google_login": {
-        "fa": "🔵 ورود با Google",
-        "en": "🔵 Sign in with Google",
-        "es": "🔵 Iniciar sesión con Google"
-    },
-
-    "continue_google": {
-        "fa": "🔵 ادامه با Google",
-        "en": "🔵 Continue with Google",
-        "es": "🔵 Continuar con Google"
-    },
-
-    "terms": {
-        "fa": "☑️ قوانین و شرایط استفاده را می‌پذیرم",
-        "en": "☑️ I accept the terms and conditions",
-        "es": "☑️ Acepto los términos y condiciones"
-    },
-
-    "name_required": {
-        "fa": "نام را وارد کن.",
-        "en": "Please enter your name.",
-        "es": "Introduce tu nombre."
-    },
-
-    "email_required": {
-        "fa": "ایمیل را وارد کن.",
-        "en": "Please enter your email.",
-        "es": "Introduce tu correo electrónico."
-    },
-
-    "password_required": {
-        "fa": "رمز عبور را وارد کن.",
-        "en": "Please enter your password.",
-        "es": "Introduce tu contraseña."
-    },
-
-    "passwords_mismatch": {
-        "fa": "رمزها یکی نیستند.",
-        "en": "Passwords do not match.",
-        "es": "Las contraseñas no coinciden."
-    },
-
-    "terms_required": {
-        "fa": "باید قوانین را قبول کنی.",
-        "en": "You must accept the terms.",
-        "es": "Debes aceptar los términos."
-    },
-
-    "search": {
-        "fa": "🔎 جستجو",
-        "en": "🔎 Search",
-        "es": "🔎 Buscar"
-    },
-
-    "today_suggestions": {
-        "fa": "🤖 پیشنهادهای امروز",
-        "en": "🤖 Today's Suggestions",
-        "es": "🤖 Sugerencias de hoy"
-    },
-
-    "no_followups": {
-        "fa": "✅ امروز پیگیری خاصی وجود ندارد.",
-        "en": "✅ No important follow-ups for today.",
-        "es": "✅ No hay seguimientos importantes para hoy."
-    },
-
-    "contacts_count": {
-        "fa": "تعداد نتایج: {count}",
-        "en": "Results: {count}",
-        "es": "Resultados: {count}"
-    },
-
-    "no_contact_found": {
-        "fa": "مخاطبی پیدا نشد.",
-        "en": "No contacts found.",
-        "es": "No se encontraron contactos."
-    },
-
-
-
-
-
-
-
-
-
-    "latest_contacts": {
-        "fa": "آخرین مخاطبین",
-        "en": "Latest Contacts",
-        "es": "Contactos recientes"
-    },
-
-    "no_contacts_yet": {
-        "fa": "هنوز مخاطبی وجود ندارد.",
-        "en": "No contacts yet.",
-        "es": "Aún no hay contactos."
-    },
-
-    "view_contact": {
-        "fa": "مشاهده مخاطب",
-        "en": "View Contact",
-        "es": "Ver contacto"
-    },
-
-    "contact_type": {
-        "fa": "نوع مخاطب",
-        "en": "Contact Type",
-        "es": "Tipo de contacto"
-    },
-
-    "personal": {
-        "fa": "شخصی",
-        "en": "Personal",
-        "es": "Personal"
-    },
-
-    "work": {
-        "fa": "کاری",
-        "en": "Work",
-        "es": "Trabajo"
-    },
-
-    "ai_analyze": {
-        "fa": "🤖 تحلیل",
-        "en": "🤖 Analyze",
-        "es": "🤖 Analizar"
-    },
-
-
-
-    "new_meeting": {
-        "fa": "📅 جلسه جدید",
-        "en": "📅 New Meeting",
-        "es": "📅 Nueva reunión"
-    },
-
-    "meeting_for": {
-        "fa": "📅 ساخت جلسه برای {name}",
-        "en": "📅 Create meeting for {name}",
-        "es": "📅 Crear reunión para {name}"
-    },
-
-    "meeting_title": {
-        "fa": "عنوان جلسه",
-        "en": "Meeting Title",
-        "es": "Título de la reunión"
-    },
-
-    "meeting_date": {
-        "fa": "تاریخ",
-        "en": "Date",
-        "es": "Fecha"
-    },
-
-    "start_time": {
-        "fa": "ساعت شروع",
-        "en": "Start Time",
-        "es": "Hora de inicio"
-    },
-
-    "end_time": {
-        "fa": "ساعت پایان",
-        "en": "End Time",
-        "es": "Hora de finalización"
-    },
-
-    "description": {
-        "fa": "توضیحات",
-        "en": "Description",
-        "es": "Descripción"
-    },
-
-    "create_meeting": {
-        "fa": "📅 ساخت جلسه",
-        "en": "📅 Create Meeting",
-        "es": "📅 Crear reunión"
-    },
-
-    "creating_meeting": {
-        "fa": "📅 در حال ساخت جلسه در Google Calendar...",
-        "en": "📅 Creating meeting in Google Calendar...",
-        "es": "📅 Creando reunión en Google Calendar..."
-    },
-
-    "meeting_created": {
-        "fa": "✅ جلسه با موفقیت در Google Calendar ساخته شد.",
-        "en": "✅ Meeting created successfully in Google Calendar.",
-        "es": "✅ Reunión creada correctamente en Google Calendar."
-    },
-
-    "open_calendar": {
-        "fa": "🔗 باز کردن جلسه در Google Calendar",
-        "en": "🔗 Open Meeting in Google Calendar",
-        "es": "🔗 Abrir reunión en Google Calendar"
-    },
-
-    "meeting_failed": {
-        "fa": "❌ ساخت جلسه ناموفق بود.",
-        "en": "❌ Failed to create meeting.",
-        "es": "❌ No se pudo crear la reunión."
-    },
-
-    "end_time_error": {
-        "fa": "❌ ساعت پایان باید بعد از ساعت شروع باشد.",
-        "en": "❌ End time must be after start time.",
-        "es": "❌ La hora de finalización debe ser posterior a la hora de inicio."
-    },
-
-    "unknown_error": {
-        "fa": "خطای نامشخص",
-        "en": "Unknown error",
-        "es": "Error desconocido"
-    },
-
-    "edit_contact": {
-        "fa": "✏️ ویرایش مخاطب: {name}",
-        "en": "✏️ Edit Contact: {name}",
-        "es": "✏️ Editar contacto: {name}"
-    },
-
-    "save_changes": {
-        "fa": "💾 ذخیره تغییرات",
-        "en": "💾 Save Changes",
-        "es": "💾 Guardar cambios"
-    },
-
-    "edit_failed": {
-        "fa": "ویرایش مخاطب ناموفق بود: {error}",
-        "en": "Failed to edit contact: {error}",
-        "es": "No se pudo editar el contacto: {error}"
-    },
-
-    "add_contact_name_required": {
-        "fa": "نام مخاطب را وارد کن.",
-        "en": "Please enter the contact name.",
-        "es": "Introduce el nombre del contacto."
-    },
-
-    "add_contact_failed": {
-        "fa": "افزودن مخاطب ناموفق بود: {error}",
-        "en": "Failed to add contact: {error}",
-        "es": "No se pudo añadir el contacto: {error}"
-    },
-
-    "no_activity": {
-        "fa": "هنوز فعالیتی ثبت نشده است.",
-        "en": "No activity has been recorded yet.",
-        "es": "Aún no hay actividad registrada."
-    },
-
-    "activity_error": {
-        "fa": "خطا در نمایش فعالیت‌ها: {error}",
-        "en": "Error displaying activity: {error}",
-        "es": "Error al mostrar la actividad: {error}"
-    },
-
-    "contact_selected": {
-        "fa": "💬 مخاطب «{name}» انتخاب شد.",
-        "en": "💬 Contact “{name}” selected.",
-        "es": "💬 Contacto «{name}» seleccionado."
-    },
-
-    "account_info": {
-        "fa": "⚙️ اطلاعات حساب",
-        "en": "⚙️ Account Information",
-        "es": "⚙️ Información de la cuenta"
-    },
-
-    "plan": {
-        "fa": "پلن",
-        "en": "Plan",
-        "es": "Plan"
-    },
-
-    "save_name": {
-        "fa": "💾 ذخیره نام",
-        "en": "💾 Save Name",
-        "es": "💾 Guardar nombre"
-    },
-
-    "name_updated": {
-        "fa": "نام با موفقیت بروزرسانی شد ✅",
-        "en": "Name updated successfully ✅",
-        "es": "Nombre actualizado correctamente ✅"
-    },
-
-    "profile_update_failed": {
-        "fa": "بروزرسانی پروفایل ناموفق بود: {error}",
-        "en": "Profile update failed: {error}",
-        "es": "No se pudo actualizar el perfil: {error}"
-    },
-
-    "registration_failed": {
-        "fa": "ثبت نام انجام نشد ❌",
-        "en": "Registration failed ❌",
-        "es": "No se pudo completar el registro ❌"
-    },
-
-    "user_info_missing": {
-        "fa": "اطلاعات کاربر دریافت نشد ❌",
-        "en": "User information was not received ❌",
-        "es": "No se recibió la información del usuario ❌"
-    },
-
-    "registration_error": {
-        "fa": "خطا در ثبت نام: {error}",
-        "en": "Registration error: {error}",
-        "es": "Error de registro: {error}"
-    },
-
-    "login_error_exception": {
-        "fa": "خطا در ورود: {error}",
-        "en": "Login error: {error}",
-        "es": "Error al iniciar sesión: {error}"
-    },
-
-    "google_security_failed": {
-        "fa": "ساخت اطلاعات امنیتی Google ناموفق بود ❌",
-        "en": "Failed to create Google security information ❌",
-        "es": "No se pudo crear la información de seguridad de Google ❌"
-    },
-
-    "google_security_save_failed": {
-        "fa": "ذخیره اطلاعات امنیتی Google ناموفق بود ❌",
-        "en": "Failed to save Google security information ❌",
-        "es": "No se pudo guardar la información de seguridad de Google ❌"
-    },
-
-    "google_state_not_found": {
-        "fa": "اطلاعات امنیتی ورود Google پیدا نشد ❌",
-        "en": "Google login security information was not found ❌",
-        "es": "No se encontró la información de seguridad del inicio de sesión de Google ❌"
-    },
-
-    "google_state_mismatch": {
-        "fa": "خطای امنیتی در ورود با Google ❌",
-        "en": "Google login security error ❌",
-        "es": "Error de seguridad al iniciar sesión con Google ❌"
-    },
-
-    "google_verifier_missing": {
-        "fa": "اطلاعات امنیتی Google کامل نیست ❌",
-        "en": "Google security information is incomplete ❌",
-        "es": "La información de seguridad de Google está incompleta ❌"
-    },
-
-    "google_credentials_failed": {
-        "fa": "دریافت اطلاعات Google ناموفق بود ❌",
-        "en": "Failed to receive Google credentials ❌",
-        "es": "No se pudieron obtener las credenciales de Google ❌"
-    },
-
-    "google_token_failed": {
-        "fa": "دریافت توکن Google ناموفق بود ❌",
-        "en": "Failed to receive Google access token ❌",
-        "es": "No se pudo obtener el token de acceso de Google ❌"
-    },
-
-    "google_userinfo_failed": {
-        "fa": "دریافت اطلاعات Google ناموفق بود ❌",
-        "en": "Failed to receive Google user information ❌",
-        "es": "No se pudo obtener la información del usuario de Google ❌"
-    },
-
-    "google_email_missing": {
-        "fa": "ایمیل حساب Google دریافت نشد ❌",
-        "en": "Google account email was not received ❌",
-        "es": "No se recibió el correo electrónico de la cuenta de Google ❌"
-    },
-
-    "google_login_failed": {
-        "fa": "ورود با Google انجام نشد ❌",
-        "en": "Google login failed ❌",
-        "es": "No se pudo iniciar sesión con Google ❌"
-    },
-
-    "google_access_save_failed": {
-        "fa": "ذخیره دسترسی Google ناموفق بود ❌",
-        "en": "Failed to save Google access ❌",
-        "es": "No se pudo guardar el acceso de Google ❌"
-    },
-
-    "google_login_success": {
-        "fa": "ورود با Google با موفقیت انجام شد ✅",
-        "en": "Google login successful ✅",
-        "es": "Inicio de sesión con Google exitoso ✅"
-    },
-
-    "google_connection_error": {
-        "fa": "خطا در اتصال Google: {error}",
-        "en": "Google connection error: {error}",
-        "es": "Error de conexión con Google: {error}"
-    },
-
-    "google_login_error": {
-        "fa": "خطا در ورود با Google: {error}",
-        "en": "Google login error: {error}",
-        "es": "Error al iniciar sesión con Google: {error}"
-    },
-
-    "vip_update_failed": {
-        "fa": "تغییر VIP ناموفق بود: {error}",
-        "en": "VIP update failed: {error}",
-        "es": "No se pudo actualizar el estado VIP: {error}"
-    },
-
-    "ai_analysis_error": {
-        "fa": "خطا در تحلیل: {error}",
-        "en": "Analysis error: {error}",
-        "es": "Error de análisis: {error}"
-    },
-
-    "ai_contact_prompt": {
-        "fa": """این مشتری را تحلیل کن.
-
-1- وضعیت مشتری چیست؟
-2- احتمال خرید یا همکاری چقدر است؟
-3- چه کاری پیشنهاد می‌کنی؟
-4- نکته مهم اطلاعات او چیست؟
-
-کوتاه و کاربردی جواب بده.""",
-
-        "en": """Analyze this customer.
-
-1- What is the customer's current status?
-2- How likely are they to buy or collaborate?
-3- What action do you recommend?
-4- What is the most important information about them?
-
-Keep the answer short and practical.""",
-
-        "es": """Analiza a este cliente.
-
-1- ¿Cuál es el estado actual del cliente?
-2- ¿Qué probabilidad hay de compra o colaboración?
-3- ¿Qué acción recomiendas?
-4- ¿Cuál es la información más importante sobre él?
-
-Responde de forma breve y práctica."""
-    },
-
-
-
-    "calendar_error": {
-        "fa": "❌ خطا در ساخت جلسه: {error}",
-        "en": "❌ Calendar error: {error}",
-        "es": "❌ Error al crear la reunión: {error}"
-    },
-
-    "meeting_default_title": {
-        "fa": "جلسه با {name}",
-        "en": "Meeting with {name}",
-        "es": "Reunión con {name}"
-    },
-
-    "meeting_default_description": {
-        "fa": "جلسه با {name}",
-        "en": "Meeting with {name}",
-        "es": "Reunión con {name}"
-    },
-    "empty_title": {
-        "fa": "هنوز مخاطبی نداری",
-        "en": "You don't have any contacts yet",
-        "es": "Todavía no tienes contactos"
-    },
-
-    "empty_text": {
-        "fa": "اولین مخاطبت رو اضافه کن تا پیگیری‌ها و پیشنهادهای امروز شروع بشه.",
-        "en": "Add your first contact to start getting follow-ups and daily suggestions.",
-        "es": "Añade tu primer contacto para empezar a recibir seguimientos y sugerencias diarias."
-    },
-
-    "empty_button": {
-        "fa": "➕ اولین مخاطبت رو اضافه کن",
-        "en": "➕ Add your first contact",
-        "es": "➕ Añade tu primer contacto"
-    },
-"footer": {
-    "fa": "ConnectAI — مدیریت هوشمند مخاطبین",
-    "en": "ConnectAI — Smart Contact Management",
-    "es": "ConnectAI — Gestión inteligente de contactos"
-}
-}
-
-
-# =========================================================
 # TRANSLATION
 # =========================================================
+from localization.language import configure_language, t, tf
+
+configure_language(current_language)
+
 AVATAR_DIR = os.path.join(
     BASE_DIR,
     "avatars"
@@ -1126,13 +414,49 @@ os.makedirs(
     AVATAR_DIR,
     exist_ok=True
 )
-def t(key):
-    return texts[key][current_language]
 
 
-def tf(key, **kwargs):
-    return t(key).format(**kwargs)
+def enable_enter_to_next():
+    components.html(
+        """
+        <script>
+        const doc = window.parent.document;
 
+        if (!doc.__enterNextInstalled) {
+            doc.__enterNextInstalled = true;
+
+            doc.addEventListener("keydown", function (e) {
+                if (e.key !== "Enter") return;
+
+                const el = e.target;
+                if (el.tagName !== "INPUT") return;
+
+                const form = el.closest('[data-testid="stForm"]');
+                if (!form) return;
+
+                const fields = Array.from(
+                    form.querySelectorAll(
+                        'input:not([type="checkbox"]):not([role="combobox"]):not([disabled]), textarea'
+                    )
+                );
+
+                const index = fields.indexOf(el);
+                if (index === -1) return;
+
+                if (index === fields.length - 1) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+                fields[index + 1].focus();
+            }, true);
+        }
+        </script>
+        """,
+        height=0,
+    )
+
+
+enable_enter_to_next()
 
 
 def load_svg_icon(path, size=20):
@@ -2000,8 +1324,7 @@ st.caption(t("subtitle"))
 # =========================================================
 
 if st.session_state.page == "dashboard":
-    with st.container(border=True):
-        st.subheader(get_greeting(user, current_language))
+    st.subheader(get_greeting(user, current_language))
 
     stats = database.get_dashboard_stats(
         user["id"],
@@ -2389,30 +1712,30 @@ elif st.session_state.page == "add_contact":
     if st.session_state.pop("contact_added_ok", False):
         st.success("کاربر با موفقیت اضافه شد!")
 
-    new_name = st.text_input(t("name"), key="new_contact_name")
-    new_email = st.text_input(t("email"), key="new_contact_email")
-    new_phone = st.text_input(t("phone"), key="new_contact_phone")
-    new_note = st.text_area(t("note"), key="new_contact_note")
-    new_budget = st.text_input(t("budget"), key="new_contact_budget")
-    new_followup = st.date_input(
-        t("followup"),
-        value=date.today() + timedelta(days=1),
-        key="new_contact_followup",
-    )
-    new_type = st.selectbox(
-        t("contact_type"),
-        [t("personal"), t("work")],
-        key="new_contact_type",
-    )
+    with st.form("add_contact_form", clear_on_submit=True):
+        new_name = st.text_input(t("name"))
+        new_email = st.text_input(t("email"))
+        new_phone = st.text_input(t("phone"))
+        new_note = st.text_area(t("note"))
+        new_budget = st.text_input(t("budget"))
+        new_followup = st.date_input(
+            t("followup"),
+            value=date.today() + timedelta(days=1),
+        )
+        new_type = st.selectbox(
+            t("contact_type"),
+            [t("personal"), t("work")],
+        )
+        new_vip = st.checkbox(t("vip"))
 
-    database_new_type = "work" if new_type == t("work") else "personal"
-    new_vip = st.checkbox(t("vip"), key="new_contact_vip")
+        submitted = st.form_submit_button(
+            t("add_contact"),
+            use_container_width=True,
+        )
 
-    if st.button(
-        t("add_contact"),
-        use_container_width=True,
-        key="add_contact_button",
-    ):
+    if submitted:
+        database_new_type = "work" if new_type == t("work") else "personal"
+
         if not new_name.strip():
             st.warning(t("add_contact_name_required"))
         else:
@@ -2466,17 +1789,23 @@ elif st.session_state.page == "activity":
                         st.caption(activity["details"])
 
                     if activity.get("created_at"):
-                        st.caption(f"🕒 {activity['created_at']}")
+                        raw = activity["created_at"]
+                        try:
+                            dt = datetime.fromisoformat(raw)
+                            shown = dt.strftime("%Y/%m/%d - %H:%M")
+                        except (ValueError, TypeError):
+                            shown = raw
+                        st.caption(f"🕒 {shown}")
 
-    except Exception as e:
-        logger.log_error(f"Activity page error: {e}")
-        st.error(tf("activity_error", error=e))
+
 
 
 # =========================================================
 # FINANCE
 # =========================================================
-
+    except Exception as e:
+        logger.log_error(f"Activity page error: {e}")
+        st.error(tf("activity_error", error=e))
 elif st.session_state.page == "finance":
     st.header(t("finance"))
 
