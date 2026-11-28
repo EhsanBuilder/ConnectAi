@@ -1892,67 +1892,76 @@ def get_dashboard_stats(user_id, workspace_id):
 # GET CONTACTS
 # =========================================================
 
+
+
 def get_contacts(user_id, workspace_id, search=""):
 
     conn = get_connection()
     cursor = conn.cursor()
 
     try:
-
         if search:
+
+            search = search.strip().lower()
+
+            # حذف دامنه ایمیل از عبارت جستجو
+            if "@" in search:
+                search = search.split("@", 1)[0]
+
+            # اگر فقط دامنه وارد شده باشد، نتیجه‌ای نشان نده
+            if not search:
+                return []
+
+            search_pattern = f"%{search}%"
 
             cursor.execute(
                 """
                 SELECT *
                 FROM contacts
-
                 WHERE user_id = ?
                 AND workspace_id = ?
                 AND deleted = 0
-
                 AND (
-                    name LIKE ?
+                    LOWER(name) LIKE ?
                     OR phone LIKE ?
-                    OR email LIKE ?
+                    OR LOWER(
+                        CASE
+                            WHEN INSTR(email, '@') > 0
+                            THEN SUBSTR(email, 1, INSTR(email, '@') - 1)
+                            ELSE email
+                        END
+                    ) LIKE ?
                 )
-
                 ORDER BY created_at DESC
                 """,
-
                 (
                     user_id,
                     workspace_id,
-                    f"%{search}%",
-                    f"%{search}%",
-                    f"%{search}%"
+                    search_pattern,
+                    search_pattern,
+                    search_pattern
                 )
             )
 
         else:
-
             cursor.execute(
                 """
                 SELECT *
                 FROM contacts
-
                 WHERE user_id = ?
                 AND workspace_id = ?
                 AND deleted = 0
-
                 ORDER BY created_at DESC
                 """,
-
-                (
-                    user_id,
-                    workspace_id
-                )
+                (user_id, workspace_id)
             )
 
         return cursor.fetchall()
 
     finally:
-
         conn.close()
+
+
         # =========================================================
 # GET ONE CONTACT
 # =========================================================
