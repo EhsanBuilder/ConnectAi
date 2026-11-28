@@ -139,7 +139,8 @@ def load_session():
         )
         return None
 
-
+        safe_log("خروج از حساب")
+        clear_session()
 def clear_session():
     try:
         if os.path.exists(SESSION_FILE):
@@ -1240,6 +1241,17 @@ if not user:
     st.rerun()
 
 
+def safe_log(action, details=""):
+    try:
+        database.log_activity(
+            user["id"],
+            st.session_state.workspace_id,
+            action,
+            details,
+        )
+    except Exception as e:
+        logger.log_error(f"Activity log error: {e}")
+
 # =========================================================
 # INTERNAL WORKSPACE
 # =========================================================
@@ -1688,6 +1700,10 @@ if st.session_state.get("calendar_form_open", False):
                     )
 
                     if result["success"]:
+                        safe_log(
+                            "جلسه ساخته شد",
+                            f"{meeting_title} - {meeting_contact['name']}",
+                        )
                         st.success("جلسه با موفقیت ساخته شد!")
 
                         if result.get("event_link"):
@@ -1709,8 +1725,7 @@ if st.session_state.get("calendar_form_open", False):
 
 elif st.session_state.page == "add_contact":
     st.header(t("add_contact"))
-    if st.session_state.pop("contact_added_ok", False):
-        st.success("کاربر با موفقیت اضافه شد!")
+
 
     with st.form("add_contact_form", clear_on_submit=True):
         new_name = st.text_input(t("name"))
@@ -1763,7 +1778,8 @@ elif st.session_state.page == "add_contact":
             except Exception as e:
                 logger.log_error(f"Add contact error: {e}")
                 st.error(tf("add_contact_failed", error=e))
-
+    if st.session_state.pop("contact_added_ok", False):
+        st.success("کاربر با موفقیت اضافه شد!")
 
 # =========================================================
 # ACTIVITY
@@ -1866,6 +1882,11 @@ elif st.session_state.page == "finance":
                         transaction_date=str(transaction_date),
                     )
 
+                    safe_log(
+                        f"{label} ثبت شد",
+                        f"{title.strip()} - {int(amount):,}",
+                    )
+
                     st.success(f"{label} با موفقیت ثبت شد")
 
                 except Exception as e:
@@ -1950,11 +1971,15 @@ if st.session_state.page == "settings":
 
                 image = Image.open(uploaded_avatar)
                 image = ImageOps.exif_transpose(image).convert("RGBA")
-                image = ImageOps.fit(image, (256, 256))
+SIZE = 512
 
-                mask = Image.new("L", (256, 256), 0)
-                ImageDraw.Draw(mask).ellipse((0, 0, 256, 256), fill=255)
-                image.putalpha(mask)
+image = ImageOps.fit(image, (SIZE, SIZE), Image.LANCZOS)
+
+# دایره رو ۴ برابر بزرگ‌تر میکشیم و کوچیک میکنیم تا لبه‌ش صاف بشه
+mask = Image.new("L", (SIZE * 4, SIZE * 4), 0)
+ImageDraw.Draw(mask).ellipse((0, 0, SIZE * 4, SIZE * 4), fill=255)
+mask = mask.resize((SIZE, SIZE), Image.LANCZOS)
+image.putalpha(mask)
 
                 image.save(avatar_path)
 
@@ -1966,11 +1991,7 @@ if st.session_state.page == "settings":
                 st.session_state.last_avatar = avatar_id
                 st.rerun()
 
-    with col2:
-        st.subheader(t("account_info"))
-        st.write(f"**{t('name')}:** {user.get('name', '')}")
-        st.write(f"**{t('email')}:** {user.get('email', '')}")
-        st.write(f"**{t('plan')}:** {user.get('plan', 'free')}")
+
 
 
     with col2:
@@ -2064,9 +2085,10 @@ if (
                         followup=edit_followup.isoformat(),
                         budget=edit_budget,
                         contact_type=database_type,
-                        vip=1 if edit_vip else 0,  # تغییر ۳
+                        vip=1 if edit_vip else 0,
                         workspace_id=st.session_state.workspace_id,
                     )
+                    safe_log("مخاطب ویرایش شد", edit_name)
                     st.success(t("contact_updated"))
                     st.session_state.editing_contact_id = None
                     st.rerun()
